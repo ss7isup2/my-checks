@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>우리FIS 통합상담 React 모듈 설명</title>
+    <style>
+      :root { color-scheme: light; --blue: #2f6bff; --text: #1f2937; --muted: #64748b; --line: #e5eaf1; --bg: #f4f6f9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; line-height: 1.65; }
+      header.page { background: #fff; border-bottom: 1px solid var(--line); }
+      .wrap { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+      header.page .wrap { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 0; }
+      header.page strong { color: var(--blue); }
+      nav a { color: var(--muted); text-decoration: none; margin-left: 14px; }
+      nav a[aria-current="page"] { color: var(--blue); font-weight: 700; }
+      main { padding: 28px 0 64px; }
+      h1 { font-size: 30px; letter-spacing: -0.03em; margin: 0 0 8px; }
+      h2 { font-size: 20px; margin: 32px 0 10px; }
+      h3 { font-size: 16px; margin: 18px 0 8px; }
+      p, li { font-size: 15px; }
+      .lead { color: #334155; font-size: 16px; }
+      .card, .note, pre, table { background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+      .card, .note { padding: 14px 16px; margin: 10px 0; }
+      .note { background: #f5f8ff; border-color: #dbe6ff; }
+      pre { padding: 14px 16px; overflow: auto; color: #e2e8f0; background: #0f172a; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+      p code, li code, td code { background: #eef3ff; color: #1e3a8a; padding: 1px 5px; border-radius: 5px; }
+      table { width: 100%; border-collapse: collapse; overflow: hidden; margin: 10px 0 16px; }
+      th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+      th { background: #f8fafc; }
+      a { color: var(--blue); }
+    </style>
+  </head>
+  <body>
+    <header class="page">
+      <div class="wrap">
+        <strong>우리FIS 통합상담</strong>
+        <nav>
+          <a href="01-react-작성과정.html">작성 과정</a>
+          <a href="02-화면-모듈-설명.html" aria-current="page">모듈 설명</a>
+          <a href="03-css-설명.html">CSS 설명</a>
+          <a href="04-css-react-학습.html">학습 방법</a>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <h1>화면 모듈 설명</h1>
+      <p class="lead"><code>front-react</code> 상담 화면을 구성하는 모듈입니다. 고객여정은 서버에서 목록을 가져오고, 추가·수정·삭제까지 하는 예시입니다. 상담 세션은 같은 방식으로 한 건을 조회하고 수정합니다.</p>
+
+      <h2>1. 화면이 조립되는 순서</h2>
+      <p><code>main.tsx</code>가 <code>App</code>을 그리고, <code>App</code>은 <code>CounselProvider</code>로 화면 전체를 감쌉니다. 그 안의 <code>Shell</code>이 열을 배치합니다.</p>
+      <pre><code>App
+ └ CounselProvider          서버 상태, 저장, 알림
+    └ Shell
+       ├ TopHeader
+       ├ IconRail
+       ├ LeftPanel
+       ├ SessionPanel        상담 수정
+       ├ JourneyPanel        여정 조회·추가·수정·삭제
+       │   └ TouchpointDialog
+       └ RightPanel</code></pre>
+
+      <h2>2. 상태 모듈</h2>
+      <h3>CounselContext</h3>
+      <p><code>src/state/CounselContext.tsx</code>가 서버 데이터를 화면 공통 상태로 둡니다. 컴포넌트는 <code>useCounsel()</code>으로 같은 값을 읽습니다.</p>
+      <table>
+        <thead><tr><th>값</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>consultation</code></td><td>현재 상담 한 건. 없으면 아직 조회 전</td></tr>
+          <tr><td><code>touchpoints</code></td><td>고객여정 배열. 서버에 저장된 순서</td></tr>
+          <tr><td><code>selectedId</code></td><td>여정에서 선택한 접점</td></tr>
+          <tr><td><code>log</code></td><td>마지막 API 메서드, 경로, 상태 코드</td></tr>
+          <tr><td><code>saving</code></td><td>저장 요청 중이면 버튼을 막습니다</td></tr>
+          <tr><td><code>notice</code> / <code>error</code></td><td>성공 토스트와 실패 배너</td></tr>
+        </tbody>
+      </table>
+      <p>조회에 실패하면 배너의 <strong>다시 시도</strong>가 <code>reload()</code>를 호출합니다. 추가와 수정이 성공하면 응답의 id로 목록을 다시 읽고 그 행을 선택합니다. 삭제 뒤에는 남아 있는 첫 접점을 선택합니다.</p>
+
+      <h3>api/client.ts</h3>
+      <p>모든 요청은 <code>fetch</code>이고 JSON을 주고받습니다. 상태 코드가 2xx가 아니면 서버의 <code>message</code>를 오류로 던집니다. 호출부는 상태 코드도 함께 받아 화면 하단 로그에 표시합니다.</p>
+
+      <h2>3. 화면 모듈</h2>
+
+      <h3>TopHeader</h3>
+      <p>로고, 전화·채팅·영상·메일·후처리 상태, 로그인 사용자입니다. 시안의 자리와 문구를 보여주는 표시 모듈이며 서버와 연결하지 않습니다.</p>
+
+      <h3>IconRail</h3>
+      <p>왼쪽 세로 아이콘입니다. 선택된 아이콘만 이 컴포넌트 상태로 기억합니다. 다른 업무 화면으로 이동하는 라우트는 이 예제에 없습니다.</p>
+
+      <h3>LeftPanel</h3>
+      <p>통합상담 열입니다.</p>
+      <ul>
+        <li><strong>고객정보</strong>의 고객명, 연락처, 최근채널은 <code>consultation</code>에서 옵니다. 상담 폼을 저장하면 이 카드도 바뀝니다. 최근문의 문구는 시안의 “수납계좌 조회”를 유지합니다.</li>
+        <li><strong>접수현황</strong>과 <strong>금일 나의실적</strong>은 <code>src/data/screen.ts</code>의 고정 숫자입니다.</li>
+        <li><strong>최근여정</strong>도 시안 문구 세 줄입니다. 아래쪽 고객여정과 일부러 분리했습니다. 서버에서 지운 접점이 이 요약 목록까지 지우면 시안과 달라지기 때문입니다.</li>
+      </ul>
+
+      <h3>SessionPanel</h3>
+      <p>상담 세션 카드입니다. 서버에서 받은 상담을 폼 상태로 복사하고, 사용자가 고친 값을 다시 서버에 보냅니다.</p>
+      <ul>
+        <li><strong>저장</strong>은 현재 접수 상태를 유지한 채 <code>PUT /api/consultation</code>을 호출합니다.</li>
+        <li><strong>단순종료</strong>, <strong>이관</strong>, <strong>상담완료</strong>는 <code>sessionStatus</code>를 그 문구로 바꾼 뒤 같은 API로 저장합니다. 카드 오른쪽 알약 문구가 함께 바뀝니다.</li>
+        <li><strong>이어받기</strong>는 상담원 칸에 “관리자”를 넣습니다. 저장을 눌러야 서버에 남습니다.</li>
+        <li><strong>전화접수</strong> 탭은 같은 상담의 접수번호, 고객, 문의내용을 읽기 형태로 보여 줍니다.</li>
+        <li>확장조회, 챗봇, 원격, 고객정보등록, 호전환, 부서 찾기는 이 예제의 범위 밖이라 안내 문구만 띄웁니다.</li>
+      </ul>
+
+      <h3>JourneyPanel — 조회, 수정, 삭제 예시</h3>
+      <p>고객여정이 서버 연동 예시입니다. 카드 하단에 마지막 요청이 표시됩니다.</p>
+      <table>
+        <thead><tr><th>화면 동작</th><th>호출</th><th>결과</th></tr></thead>
+        <tbody>
+          <tr><td>화면을 연다</td><td><code>GET /api/touchpoints</code></td><td>시간 순이 아니라 서버 배열 순서대로 타임라인에 표시</td></tr>
+          <tr><td>접점 추가</td><td><code>POST /api/touchpoints</code></td><td>새 행이 목록 맨 앞에 생기고 선택됨. 상태 코드 201</td></tr>
+          <tr><td>수정</td><td><code>PUT /api/touchpoints/{id}</code></td><td>제목, 요약, 상담내용, 처리결과 등을 바꿈</td></tr>
+          <tr><td>삭제</td><td><code>DELETE /api/touchpoints/{id}</code></td><td>확인 후에 삭제. 없는 id는 404</td></tr>
+          <tr><td>초기화</td><td><code>POST /api/reset</code></td><td>상담과 여정을 seed 값으로 되돌림</td></tr>
+        </tbody>
+      </table>
+      <p>전체, 전화, WEB, SMS 탭과 날짜 범위는 받아 둔 배열을 화면에서 거릅니다. 발생일시가 <code>YYYY-MM-DD HH:mm</code>이면 저장할 때 타임라인의 날짜와 시간을 그 값에서 다시 만듭니다.</p>
+      <div class="note">제목이 비어 있으면 화면과 서버가 모두 거절합니다. 서버 메시지는 “제목을 입력해 주세요.”입니다. 채널은 전화, WEB, SMS만 저장하고 그 외 값은 전화로 바꿉니다.</div>
+
+      <h3>TouchpointDialog</h3>
+      <p>추가와 수정이 같은 대화상자입니다. 추가일 때는 제목에 POST 경로를, 수정일 때는 해당 id의 PUT 경로를 보여 줍니다. 수정 모드의 삭제는 버튼이 “삭제 확인”으로 바뀐 뒤에 요청을 보냅니다.</p>
+
+      <h3>RightPanel</h3>
+      <p>AI Advisor, 지식 추천, 추천 답변, AI 요약입니다. 지식 목록과 답변 문장은 <code>screen.ts</code>의 시안 예시입니다. 답변 복사는 브라우저 클립보드에 그 문장을 넣습니다.</p>
+      <p>다음 값은 저장된 상담을 따라갑니다. 상담을 저장하기 전에는 폼에만 있고, 저장 후에 이 카드가 바뀝니다.</p>
+      <ul>
+        <li>고객명</li>
+        <li>상담유형: 대분류 &gt; 중분류 &gt; 소분류</li>
+        <li>키워드의 오류코드, 거래코드</li>
+        <li>조치 문장. 처리내용이 있으면 그 문장, 없으면 시안의 기본 문장</li>
+      </ul>
+      <p>오른쪽 닫기 버튼과 가장자리의 AI Advisor 글자는 이 열을 접고 펼칩니다. 서버 요청은 없습니다.</p>
+
+      <h2>4. API 모듈</h2>
+      <p><code>server/apiPlugin.mjs</code>가 JSON 파일을 읽고 씁니다. 상담 id는 요청으로 바꾸지 못합니다. 상담 수정은 허용된 필드만 반영합니다.</p>
+      <table>
+        <thead><tr><th>메서드</th><th>경로</th><th>본문</th><th>응답</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/api/health</code></td><td>없음</td><td><code>{ "ok": true }</code></td></tr>
+          <tr><td>GET</td><td><code>/api/consultation</code></td><td>없음</td><td>상담 객체</td></tr>
+          <tr><td>PUT</td><td><code>/api/consultation</code></td><td>상담 객체</td><td>저장된 상담</td></tr>
+          <tr><td>GET</td><td><code>/api/touchpoints</code></td><td>없음</td><td>접점 배열</td></tr>
+          <tr><td>POST</td><td><code>/api/touchpoints</code></td><td>id 없는 접점</td><td>생성된 접점, 201</td></tr>
+          <tr><td>PUT</td><td><code>/api/touchpoints/{id}</code></td><td>접점 필드</td><td>수정된 접점</td></tr>
+          <tr><td>DELETE</td><td><code>/api/touchpoints/{id}</code></td><td>없음</td><td>삭제된 접점</td></tr>
+          <tr><td>POST</td><td><code>/api/reset</code></td><td>없음</td><td>seed 전체</td></tr>
+        </tbody>
+      </table>
+      <h3>상담 객체의 주요 필드</h3>
+      <p><code>id</code>, <code>channel</code>, <code>employeeNo</code>, <code>customerName</code>, <code>phone</code>, <code>receiptNo</code>, <code>department</code>, <code>receivedAt</code>, <code>agentName</code>, <code>requestType</code>, <code>categoryLarge</code>, <code>categoryMid</code>, <code>categorySmall</code>, <code>txCode</code>, <code>txName</code>, <code>txAction</code>, <code>errorCode</code>, <code>programName</code>, <code>userRequest</code>, <code>inquiry</code>, <code>handling</code>, <code>sessionStatus</code>, <code>sessionStartedAt</code>.</p>
+      <h3>접점 객체의 필드</h3>
+      <p><code>id</code>, <code>dateLabel</code>, <code>timeLabel</code>, <code>channel</code>, <code>title</code>, <code>summary</code>, <code>statusLabel</code>, <code>occurredAt</code>, <code>consultType</code>, <code>content</code>, <code>result</code>, <code>processStatus</code>.</p>
+      <p>실패 응답은 <code>{ "message": "..." }</code>입니다. id에 영문, 숫자, <code>_</code>, <code>-</code> 외의 문자가 있으면 400을 반환합니다.</p>
+
+      <h2>5. 예시로 따라 하는 수정과 삭제</h2>
+      <div class="card">
+        <p><strong>상담 수정.</strong> 처리내용에 안내 문장을 적고 저장을 누릅니다. <code>data/db.json</code>의 <code>consultation.handling</code>이 그 문장으로 바뀌고, 오른쪽 요약의 조치 칸도 같은 문장을 보여 줍니다.</p>
+        <p><strong>여정 추가.</strong> 접점 추가에서 제목 “테스트 접점”, 발생일시 <code>2026-09-30 16:40</code>을 저장합니다. 타임라인 맨 위에 09.30 16:40 행이 생깁니다.</p>
+        <p><strong>여정 수정.</strong> 그 행의 수정을 눌러 처리결과를 바꿉니다. 오른쪽 선택 접점 상세가 서버에서 다시 읽은 값으로 갱신됩니다.</p>
+        <p><strong>여정 삭제.</strong> 삭제 후 확인을 누르면 행이 사라지고 다음 접점이 선택됩니다. 초기화를 누르면 시안의 네 건으로 돌아갑니다.</p>
+      </div>
+
+      <h2>6. 고정 데이터와 서버 데이터</h2>
+      <table>
+        <thead><tr><th>보이는 곳</th><th>출처</th></tr></thead>
+        <tbody>
+          <tr><td>채널 상태, 사용자, 접수 건수, 오늘의 실적, 왼쪽 최근여정</td><td><code>src/data/screen.ts</code>와 컴포넌트 상수</td></tr>
+          <tr><td>지식 추천, 추천 답변 본문</td><td><code>src/data/screen.ts</code></td></tr>
+          <tr><td>고객명, 연락처, 상담 폼, 세션 상태</td><td><code>GET/PUT /api/consultation</code></td></tr>
+          <tr><td>고객여정 타임라인과 선택 상세</td><td><code>/api/touchpoints</code></td></tr>
+          <tr><td>오른쪽 고객명, 상담유형, 오류코드, 조치</td><td>저장된 상담 필드</td></tr>
+        </tbody>
+      </table>
+      <p>만드는 순서와 실행 방법은 <a href="01-react-작성과정.html">작성 과정</a>을 보면 됩니다.</p>
+    </main>
+  </body>
+</html>
