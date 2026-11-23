@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>global.css 학습 설명</title>
+    <style>
+      :root { color-scheme: light; --blue: #2f6bff; --text: #1f2937; --muted: #64748b; --line: #e5eaf1; --bg: #f4f6f9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; line-height: 1.65; }
+      header.page { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+      .wrap { width: min(1080px, calc(100% - 32px)); margin: 0 auto; }
+      header.page .wrap { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 0; }
+      header.page strong { color: var(--blue); }
+      nav a { color: var(--muted); text-decoration: none; margin-left: 14px; }
+      nav a[aria-current="page"] { color: var(--blue); font-weight: 700; }
+      main { padding: 28px 0 72px; }
+      h1 { font-size: 30px; letter-spacing: -0.03em; margin: 0 0 8px; }
+      h2 { font-size: 22px; margin: 36px 0 10px; }
+      h3 { font-size: 17px; margin: 22px 0 8px; }
+      p, li { font-size: 15px; }
+      .lead { color: #334155; font-size: 16px; }
+      a { color: var(--blue); }
+      .card, .note, pre, table { background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+      .card, .note { padding: 14px 16px; margin: 10px 0; }
+      .note { background: #f5f8ff; border-color: #dbe6ff; }
+      pre { padding: 14px 16px; overflow: auto; color: #e2e8f0; background: #0f172a; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+      p code, li code, td code { background: #eef3ff; color: #1e3a8a; padding: 1px 5px; border-radius: 5px; }
+      pre code { background: transparent; color: inherit; padding: 0; }
+      table { width: 100%; border-collapse: collapse; overflow: hidden; margin: 10px 0 18px; }
+      th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+      th { background: #f8fafc; }
+      td.n { width: 58px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+      td.c { width: 46%; }
+      td.c code { white-space: pre-wrap; word-break: break-all; }
+      .toc { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 0; margin: 12px 0 0; list-style: none; }
+      .toc a { text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <header class="page">
+      <div class="wrap">
+        <strong>우리FIS 통합상담</strong>
+        <nav>
+          <a href="01-react-build-process.html">작성 과정</a>
+          <a href="02-screen-modules.html">모듈 설명</a>
+          <a href="03-css-guide.html" aria-current="page">CSS 설명</a>
+          <a href="04-css-react-learning.html">학습 방법</a>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <h1>CSS가 동작하는 방식과 global.css</h1>
+      <p class="lead">앞부분은 CSS를 읽을 때 필요한 기본 규칙입니다. 뒷부분은 <code>front-react/src/styles/global.css</code> 321줄을 위에서부터 한 줄씩 설명합니다. 줄 번호는 그 파일의 번호와 같습니다.</p>
+      <ul class="toc">
+        <li><a href="#basic">규칙의 모양</a></li>
+        <li><a href="#selector">선택자</a></li>
+        <li><a href="#box">박스</a></li>
+        <li><a href="#cascade">상속과 덮어쓰기</a></li>
+        <li><a href="#layout">Flex와 Grid</a></li>
+        <li><a href="#position">위치</a></li>
+        <li><a href="#project">이 화면에 적용되는 경로</a></li>
+        <li><a href="#lines">줄별 해설</a></li>
+      </ul>
+
+      <h2 id="basic">1. CSS 규칙의 모양</h2>
+      <p>CSS는 “어떤 요소를 찾아서, 그 요소의 속성을 어떤 값으로 둘지”를 적는 언어입니다. 한 덩어리를 규칙이라고 부릅니다.</p>
+      <pre><code>.btn {
+  height: 28px;
+  background: #fff;
+}</code></pre>
+      <ul>
+        <li><code>.btn</code>는 선택자입니다. 클래스 이름이 <code>btn</code>인 요소를 찾습니다.</li>
+        <li><code>height</code>는 속성, <code>28px</code>는 값입니다. 속성과 값을 합쳐 선언이라고 합니다. 선언은 세미콜론으로 끝냅니다.</li>
+        <li>중괄호 안이 선언 블록입니다.</li>
+      </ul>
+      <p>브라우저는 HTML을 그린 뒤 스타일시트를 읽고, 각 요소에 맞는 선언을 모아 최종 스타일을 계산합니다. React의 <code>className="btn primary"</code>는 DOM에 <code>class="btn primary"</code>를 만듭니다. CSS는 React를 모르고 그 class 문자열만 봅니다.</p>
+      <p>이 프로젝트의 스타일은 CSS Modules가 아닙니다. 클래스 이름이 파일 전체에서 전역으로 통합니다. <code>card</code>라는 이름을 다른 뜻으로 다시 쓰면 화면 전체의 카드가 바뀝니다.</p>
+
+      <h2 id="selector">2. 선택자</h2>
+      <p>선택자는 요소를 고르는 조건입니다. 이 파일이 실제로 쓰는 종류만 정리합니다.</p>
+      <table>
+        <thead><tr><th>모양</th><th>이름</th><th>고르는 대상</th><th>이 파일의 예</th></tr></thead>
+        <tbody>
+          <tr><td><code>button</code></td><td>요소 선택자</td><td>그 태그 전부</td><td><code>button { cursor: pointer; }</code></td></tr>
+          <tr><td><code>.card</code></td><td>클래스 선택자</td><td><code>class</code>에 card가 있는 요소</td><td>상담 카드, 왼쪽 카드</td></tr>
+          <tr><td><code>html, body</code></td><td>묶음 선택자</td><td>쉼표로 나열한 대상을 같은 선언으로</td><td>높이 100%</td></tr>
+          <tr><td><code>.status-pill.green</code></td><td>복합 클래스</td><td>두 클래스를 한 요소가 모두 가질 때</td><td>채팅상담 알약</td></tr>
+          <tr><td><code>.rail button</code></td><td>자손 선택자</td><td><code>.rail</code> 안에 있는 button</td><td>아이콘 메뉴 버튼</td></tr>
+          <tr><td><code>.btn:hover</code></td><td>가상 클래스</td><td>마우스 올렸을 때, 초점이 있을 때, 비활성일 때</td><td><code>:hover</code>, <code>:focus</code>, <code>:disabled</code></td></tr>
+          <tr><td><code>.timeline::before</code></td><td>가상 요소</td><td>요소 앞뒤에 상자를 하나 만들어 장식으로 씀</td><td>여정 세로선, 대화상자 뒤 어두운 막</td></tr>
+          <tr><td><code>:root</code></td><td>가상 선택자</td><td>문서 최상위. HTML에서는 <code>html</code>과 같습니다</td><td>색 변수와 기본 글자</td></tr>
+        </tbody>
+      </table>
+      <p>클래스가 여러 개면 띄어 써서 적습니다. <code>class="btn primary"</code>는 <code>.btn</code>에도 맞고 <code>.btn.primary</code>에도 맞습니다. <code>.primary</code>만 쓰면 primary 클래스를 가진 다른 요소까지 같이 바뀝니다.</p>
+
+      <h2 id="box">3. 박스</h2>
+      <p>화면에 놓이는 요소는 모두 사각형입니다. 안쪽부터 내용, padding, border, margin입니다.</p>
+      <ul>
+        <li><code>width</code>와 <code>height</code>는 기본적으로 내용 크기만 말합니다. padding을 더하면 눈으로 보는 크기가 더 커집니다.</li>
+        <li><code>box-sizing: border-box</code>로 바꾸면 width 안에 padding과 border가 포함됩니다. 이 파일 1행 다음의 <code>*</code>가 모든 요소에 그 값을 줍니다. 그래서 입력칸에 <code>width: 100%</code>와 <code>padding: 0 8px</code>를 같이 줘도 부모 밖으로 넘치지 않습니다.</li>
+        <li><code>margin</code>은 바깥 간격이라 width에 포함되지 않습니다. <code>gap</code>은 Flex와 Grid가 자식 사이에 넣는 간격이고, margin과 달리 부모 안에서만 계산됩니다.</li>
+      </ul>
+      <p><code>display</code>는 그 상자가 줄 안에서 어떻게 놓이는지, 자식을 어떻게 나누는지를 정합니다.</p>
+      <ul>
+        <li><code>block</code>은 한 줄을 차지합니다. <code>div</code>의 기본값입니다.</li>
+        <li><code>inline</code>은 글자처럼 흐릅니다. <code>span</code>의 기본값입니다. width와 height가 잘 먹지 않습니다.</li>
+        <li><code>inline-flex</code>와 <code>inline-grid</code>는 자신은 글자처럼 놓이면서 자식은 Flex나 Grid로 나눕니다. 알약 버튼이 이 방식입니다.</li>
+        <li><code>none</code>은 이 파일에 없습니다. React가 요소를 렌더링하지 않는 방식으로 오른쪽 패널을 숨깁니다.</li>
+      </ul>
+
+      <h2 id="cascade">4. 상속과 덮어쓰기</h2>
+      <p>어떤 속성은 부모 값이 자식에게 내려갑니다. 이 파일에서 그런 속성은 <code>color</code>, <code>font-family</code>, <code>font-size</code>, <code>line-height</code>입니다. <code>:root</code>에 12px를 주면 카드 안의 글자도 12px로 시작합니다. 제목은 자기 <code>font-size</code>로 그 값을 덮습니다.</p>
+      <p><code>background</code>, <code>width</code>, <code>margin</code>, <code>border</code>는 상속되지 않습니다. 카드 배경을 흰색으로 적지 않으면 부모의 회색이 비쳐 보일 뿐, 카드가 흰색 속성을 물려받지는 않습니다.</p>
+      <p>폼 컨트롤은 예외입니다. <code>button</code>과 <code>input</code>은 글꼴을 상속하지 않고 브라우저 기본 글꼴을 씁니다. 25행의 <code>font: inherit</code>가 그 기본을 부모 글꼴로 되돌립니다. <code>font</code>는 font-size, font-family, font-weight 등을 한 번에 지정하는 단축 속성입니다.</p>
+      <p>한 요소에 같은 속성이 여러 규칙에서 오면 아래 순서로 하나를 고릅니다.</p>
+      <ol>
+        <li>인라인 <code>style</code> 속성이 스타일시트보다 강합니다. 이 화면의 신뢰도 막대 <code>&lt;i style="width: 96%"&gt;</code>가 그 예입니다. 너비는 JSX에 있고 CSS는 높이만 정합니다.</li>
+        <li>선택자가 더 구체적이면 이깁니다. 대략 클래스 하나가 요소 이름보다 강하고, 클래스가 많을수록 강합니다. <code>.rail button.on</code>은 클래스 둘과 요소 하나라 <code>.rail button</code>보다 강합니다. 그래서 선택된 아이콘만 파란 배경이 됩니다.</li>
+        <li>구체성이 같으면 파일에서 나중에 나온 선언이 이깁니다. <code>.live-pill</code>과 <code>.time-pill</code>은 둘 다 클래스 하나입니다. <code>.time-pill</code>이 뒤에 있어서 시간 알약의 배경만 회색으로 바뀝니다.</li>
+      </ol>
+      <div class="note"><code>--orange</code>는 11행에 만들어 두었지만, 이 파일 안에서 <code>var(--orange)</code>로 읽지는 않습니다. 주황 알약은 63행 근처에서 색을 직접 적습니다. 변수는 선언만으로 화면에 영향이 없습니다.</div>
+
+      <h2 id="layout">5. Flex와 Grid</h2>
+      <p>둘 다 부모에게 <code>display</code>를 주고, 그 부모가 자식을 배치합니다.</p>
+      <h3>Flex</h3>
+      <p>자식을 한 방향 줄로 놓습니다. 기본 방향은 가로입니다. <code>flex-direction: column</code>이면 세로입니다.</p>
+      <ul>
+        <li><code>justify-content</code>는 주축 정렬입니다. 가로 flex에서는 좌우, 세로 flex에서는 위아래입니다. <code>space-between</code>은 첫 자식과 마지막 자식을 양 끝에 붙입니다.</li>
+        <li><code>align-items</code>는 교차축 정렬입니다. 가로 flex에서 <code>center</code>면 세로 가운데입니다.</li>
+        <li><code>flex: 1</code>은 남은 공간을 먹습니다. <code>.grow</code>가 제목과 버튼 사이를 밀어 냅니다.</li>
+        <li><code>flex: none</code>은 줄어들지 않습니다. 서버 연동 막대가 카드 아래에 높이를 유지하는 이유입니다.</li>
+        <li><code>min-width: 0</code>과 <code>min-height: 0</code>은 자식이 내용보다 작아질 수 있게 합니다. 이 값이 없으면 Flex와 Grid 자식은 글자 너비 아래로 줄어들지 않아 스크롤이 부모 대신 페이지에 생깁니다.</li>
+      </ul>
+      <h3>Grid</h3>
+      <p>행과 열을 먼저 정하고 자식을 칸에 넣습니다. 자식은 HTML에 나온 순서대로 칸을 채웁니다.</p>
+      <ul>
+        <li><code>grid-template-columns: 52px 300px 1fr 304px 32px</code>처럼 적으면 왼쪽부터 그 너비의 열이 생깁니다.</li>
+        <li><code>1fr</code>는 고정 칸을 빼고 남은 공간의 한 몫입니다. <code>1.45fr 0.75fr</code>이면 남은 공간을 1.45 대 0.75로 나눕니다.</li>
+        <li><code>auto</code>는 내용이 필요로 하는 크기입니다.</li>
+        <li><code>minmax(0, 1fr)</code>는 최소 0, 최대 남은 공간입니다. 최소를 0으로 둬야 긴 글자가 열을 억지로 넓히지 않습니다.</li>
+        <li><code>repeat(3, minmax(0, 1fr))</code>는 같은 열을 세 번 만듭니다.</li>
+        <li><code>place-items: center</code>는 Grid 칸 안에서 자식을 가로세로 가운데에 둡니다. 로고의 “우” 글자가 파란 사각형 한가운데에 있는 방식입니다.</li>
+      </ul>
+      <p>이 화면은 큰 칸을 Grid로 나누고, 칸 안의 한 줄은 Flex로 나눕니다. <code>.app</code>이 헤더와 본문을 나누고, <code>.body</code>가 다섯 열을 나누고, <code>.card-head</code>가 제목과 버튼을 한 줄로 놓습니다.</p>
+
+      <h2 id="position">6. 위치</h2>
+      <ul>
+        <li><code>static</code>이 기본값입니다. 문서 흐름대로 놓입니다.</li>
+        <li><code>relative</code>는 자기 자리를 유지한 채 기준점만 만듭니다. <code>.icon-btn</code>이 relative이고 그 안의 <code>.dot</code>이 absolute라, 빨간 점이 버튼 모서리를 기준으로 붙습니다.</li>
+        <li><code>absolute</code>는 흐름에서 빠집니다. 뒤 요소가 그 자리를 채웁니다. 기준은 가장 가까운 relative, absolute, fixed 조상입니다. 없으면 페이지입니다. 오류 배너가 헤더 위에 겹치는 이유입니다.</li>
+        <li><code>fixed</code>도 흐름에서 빠지고, 기준이 브라우저 창입니다. 스크롤해도 토스트가 창 하단에 남습니다.</li>
+        <li><code>left: 50%</code>는 요소의 왼쪽 끝을 가운데에 둡니다. <code>transform: translateX(-50%)</code>가 자기 너비의 절반만큼 왼쪽으로 당겨 진짜 가운데가 됩니다.</li>
+        <li><code>z-index</code>는 겹치는 순서를 정합니다. position이 static이 아닌 요소에서 동작합니다. 배너는 20, 토스트는 30이라 토스트가 더 위입니다.</li>
+      </ul>
+
+      <h2 id="project">7. 이 파일은 어디에 붙는가</h2>
+      <p><code>src/main.tsx</code>가 <code>import './styles/global.css'</code>로 이 파일을 읽습니다. Vite가 개발 서버의 페이지에 style로 넣습니다. 클래스 이름은 각 컴포넌트의 <code>className</code>과 같아야 적용됩니다.</p>
+      <table>
+        <thead><tr><th>클래스 묶음</th><th>그리는 컴포넌트</th></tr></thead>
+        <tbody>
+          <tr><td><code>app</code>, <code>body</code>, <code>banner</code>, <code>toast</code>, <code>edge</code></td><td><code>App.tsx</code>의 Shell</td></tr>
+          <tr><td><code>top</code>, <code>logo</code>, <code>status-pill</code>, <code>userbox</code></td><td><code>TopHeader</code></td></tr>
+          <tr><td><code>rail</code></td><td><code>IconRail</code></td></tr>
+          <tr><td><code>left</code>, <code>intake</code>, <code>recent</code>, <code>stats</code></td><td><code>LeftPanel</code></td></tr>
+          <tr><td><code>session-card</code>, <code>form-grid</code>, <code>area</code></td><td><code>SessionPanel</code></td></tr>
+          <tr><td><code>journey-card</code>, <code>timeline</code>, <code>server-bar</code></td><td><code>JourneyPanel</code></td></tr>
+          <tr><td><code>editor</code></td><td><code>TouchpointDialog</code></td></tr>
+          <tr><td><code>right</code>, <code>advisor</code>, <code>knowledge</code>, <code>guide</code></td><td><code>RightPanel</code></td></tr>
+        </tbody>
+      </table>
+      <p>화면의 바깥 구조는 이렇게 쌓입니다.</p>
+      <pre><code>.app                         창 높이. 세로 2행
+ ├ .top                       52px 헤더. 가로 3열
+ └ .body                      남은 높이. 가로 5열
+    ├ .rail
+    ├ .left                   카드들이 세로로 쌓이고 열 안에서 스크롤
+    ├ .center                 위 상담 카드, 아래 여정 348px
+    ├ .right                  AI 카드. 닫으면 이 열이 사라짐
+    └ .edge                   세로 글자</code></pre>
+
+      <h2 id="lines">8. global.css 줄별 해설</h2>
+      <p>빈 줄은 규칙을 눈으로만 나누며 화면에는 영향이 없습니다. 아래 표의 번호가 파일 줄 번호입니다.</p>
+
+      <h3 id="l-root">1–27행. 변수, 글자, 박스 기준</h3>
+      <table>
+        <thead><tr><th>행</th><th>코드</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td class="c"><code>:root {</code></td><td><code>html</code>을 선택하고 선언 블록을 엽니다. 여기 둔 변수는 자손이 <code>var(--이름)</code>으로 읽습니다.</td></tr>
+          <tr><td class="n">2</td><td class="c"><code>--bg: #f3f5f8;</code></td><td>페이지 배경에 쓸 밝은 회색을 변수로 저장합니다. <code>#</code> 뒤 여섯 자리는 빨강, 초록, 파랑 각 두 자리입니다.</td></tr>
+          <tr><td class="n">3</td><td class="c"><code>--card: #ffffff;</code></td><td>카드 배경색. 흰색입니다.</td></tr>
+          <tr><td class="n">4</td><td class="c"><code>--line: #e5eaf1;</code></td><td>카드 테두리와 헤더 하단선에 쓰는 연한 경계색입니다.</td></tr>
+          <tr><td class="n">5</td><td class="c"><code>--text: #1f2937;</code></td><td>기본 글자색입니다. 거의 검정이되 순흑은 아닙니다.</td></tr>
+          <tr><td class="n">6</td><td class="c"><code>--muted: #8b95a7;</code></td><td>라벨, 보조 문구, 시간처럼 한 단계 약한 글자색입니다.</td></tr>
+          <tr><td class="n">7</td><td class="c"><code>--blue: #2f6bff;</code></td><td>저장 버튼, 로고, 선택 상태의 파란색입니다.</td></tr>
+          <tr><td class="n">8</td><td class="c"><code>--blue-soft: #eef3ff;</code></td><td>파란 글자 뒤의 옅은 배경입니다. 선택된 탭, 아바타, 서버 연동 태그에 씁니다.</td></tr>
+          <tr><td class="n">9</td><td class="c"><code>--green: #12a15a;</code></td><td>완료 배지의 글자색입니다.</td></tr>
+          <tr><td class="n">10</td><td class="c"><code>--green-soft: #e7f8ee;</code></td><td>완료 배지의 배경색입니다.</td></tr>
+          <tr><td class="n">11</td><td class="c"><code>--orange: #f59e0b;</code></td><td>주황 변수를 만들어 둡니다. 이 파일의 다른 줄은 이 변수를 읽지 않습니다.</td></tr>
+          <tr><td class="n">12</td><td class="c"><code>--shadow: 0 1px 2px rgba(16, 24, 40, 0.04);</code></td><td>그림자입니다. 가로 0, 세로 1px, 흐림 2px입니다. <code>rgba</code>의 마지막 0.04는 불투명도라 그림자가 매우 옅습니다.</td></tr>
+          <tr><td class="n">13</td><td class="c"><code>--radius: 12px;</code></td><td>카드 모서리 둥글기입니다. <code>px</code>는 화면 픽셀 기준의 고정 길이입니다.</td></tr>
+          <tr><td class="n">14</td><td class="c"><code>color: var(--text);</code></td><td><code>html</code>의 글자색을 변수 값으로 둡니다. <code>color</code>는 상속되므로 따로 색을 안 준 글자가 이 색이 됩니다.</td></tr>
+          <tr><td class="n">15</td><td class="c"><code>background: var(--bg);</code></td><td><code>html</code> 배경을 회색으로 둡니다. 배경은 상속되지 않고 이 요소의 영역만 칠합니다.</td></tr>
+          <tr><td class="n">16</td><td class="c"><code>font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;</code></td><td>글꼴을 앞에서부터 찾습니다. 컴퓨터에 없으면 다음 글꼴을 씁니다. 이름이 두 단어면 따옴표가 필요합니다. <code>sans-serif</code>는 마지막 계열 이름입니다.</td></tr>
+          <tr><td class="n">17</td><td class="c"><code>font-size: 12px;</code></td><td>기본 글자 크기입니다. 자식이 이 값을 상속합니다.</td></tr>
+          <tr><td class="n">18</td><td class="c"><code>line-height: 1.4;</code></td><td>줄 높이를 글자 크기의 1.4배로 둡니다. 단위를 빼면 자식의 글자 크기에 다시 곱해져서, 14px 제목의 줄 높이는 14×1.4가 됩니다.</td></tr>
+          <tr><td class="n">19</td><td class="c"><code>}</code></td><td><code>:root</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">21</td><td class="c"><code>* { box-sizing: border-box; }</code></td><td><code>*</code>는 모든 요소입니다. 이후의 width와 height는 padding과 border를 포함한 크기가 됩니다.</td></tr>
+          <tr><td class="n">23</td><td class="c"><code>html, body, #root { height: 100%; margin: 0; }</code></td><td>세 요소의 높이를 부모의 100%로 하고 브라우저 기본 바깥 여백을 없앱니다. <code>#root</code>는 id 선택자이며 React가 화면을 심는 div입니다. 이 높이가 있어야 뒤의 <code>100vh</code> 레이아웃이 창에 붙습니다.</td></tr>
+          <tr><td class="n">25</td><td class="c"><code>button, input, select, textarea { font: inherit; color: inherit; }</code></td><td>폼 요소가 부모의 글꼴과 글자색을 그대로 쓰게 합니다. <code>inherit</code>는 “부모의 계산된 값을 써라”는 값입니다.</td></tr>
+          <tr><td class="n">27</td><td class="c"><code>button { cursor: pointer; }</code></td><td>모든 버튼 위에 올리면 포인터 커서가 됩니다. 누르는 요소임을 보여 줍니다.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="l-frame">29–115행. 헤더와 다섯 열</h3>
+      <table>
+        <thead><tr><th>행</th><th>코드</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td class="n">29</td><td class="c"><code>.app {</code></td><td><code>App.tsx</code>의 가장 바깥 div를 선택합니다.</td></tr>
+          <tr><td class="n">30</td><td class="c"><code>height: 100vh;</code></td><td>높이를 브라우저 창 높이로 고정합니다. <code>vh</code>는 창 높이의 1%입니다. 100vh는 창 전체입니다.</td></tr>
+          <tr><td class="n">31</td><td class="c"><code>min-width: 1440px;</code></td><td>창이 이보다 좁아도 레이아웃 너비는 1440px 아래로 줄어들지 않습니다. 그때는 페이지에 가로 스크롤이 생깁니다.</td></tr>
+          <tr><td class="n">32</td><td class="c"><code>display: grid;</code></td><td>이 요소의 자식을 Grid로 배치합니다. 자식은 헤더와 본문 둘입니다.</td></tr>
+          <tr><td class="n">33</td><td class="c"><code>grid-template-rows: 52px minmax(0, 1fr);</code></td><td>첫 행은 헤더 52px입니다. 둘째 행은 최소 0, 나머지 전부입니다. <code>minmax</code>의 최소가 0이라 본문이 내용 높이 때문에 창 밖으로 밀리지 않습니다.</td></tr>
+          <tr><td class="n">34</td><td class="c"><code>background: var(--bg);</code></td><td>앱 배경을 페이지와 같은 회색으로 칠합니다. 카드 사이의 틈이 이 색으로 보입니다.</td></tr>
+          <tr><td class="n">35</td><td class="c"><code>}</code></td><td><code>.app</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">37</td><td class="c"><code>.top {</code></td><td>헤더를 선택합니다.</td></tr>
+          <tr><td class="n">38</td><td class="c"><code>display: grid;</code></td><td>로고, 상태 알약, 사용자 영역을 열로 나눕니다.</td></tr>
+          <tr><td class="n">39</td><td class="c"><code>grid-template-columns: 180px 1fr auto;</code></td><td>로고 열 180px, 가운데는 남은 공간, 오른쪽은 내용 너비입니다.</td></tr>
+          <tr><td class="n">40</td><td class="c"><code>align-items: center;</code></td><td>각 칸의 내용물을 세로 가운데에 맞춥니다.</td></tr>
+          <tr><td class="n">41</td><td class="c"><code>gap: 12px;</code></td><td>세 열 사이에 12px를 둡니다.</td></tr>
+          <tr><td class="n">42</td><td class="c"><code>padding: 0 12px 0 14px;</code></td><td>안쪽 여백입니다. 순서는 위, 오른쪽, 아래, 왼쪽입니다. 위아래는 0이라 52px 높이를 padding이 잠식하지 않습니다.</td></tr>
+          <tr><td class="n">43</td><td class="c"><code>background: #fff;</code></td><td>헤더만 흰색입니다. 변수 대신 색을 직접 적은 선언입니다.</td></tr>
+          <tr><td class="n">44</td><td class="c"><code>border-bottom: 1px solid var(--line);</code></td><td>헤더 아래에 1px 실선을 그어 본문과 구분합니다.</td></tr>
+          <tr><td class="n">45</td><td class="c"><code>}</code></td><td><code>.top</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">47</td><td class="c"><code>.logo { display: flex; align-items: center; gap: 8px; }</code></td><td>로고 마크와 “우리FIS”를 가로로 놓고 세로 가운데로 맞춥니다. 사이는 8px입니다.</td></tr>
+          <tr><td class="n">48</td><td class="c"><code>.logo span {</code></td><td>로고 안의 “우” 글자 상자만 고릅니다. 자손 선택자입니다.</td></tr>
+          <tr><td class="n">49</td><td class="c"><code>width: 28px; height: 28px; border-radius: 8px;</code></td><td>28px 정사각형에 모서리를 8px 깎아 둥근 사각형을 만듭니다.</td></tr>
+          <tr><td class="n">50</td><td class="c"><code>display: grid; place-items: center;</code></td><td>한 칸 Grid로 만들고 글자를 칸의 한가운데에 둡니다.</td></tr>
+          <tr><td class="n">51</td><td class="c"><code>background: var(--blue); color: #fff; font-weight: 700; font-size: 14px;</code></td><td>배경은 파랑, 글자는 흰색, 굵기는 700, 크기는 14px입니다. 이 글자색은 상속된 진한 색을 덮습니다.</td></tr>
+          <tr><td class="n">52</td><td class="c"><code>}</code></td><td><code>.logo span</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">53</td><td class="c"><code>.logo strong { font-size: 18px; letter-spacing: -0.04em; }</code></td><td>“우리FIS”를 18px로 키웁니다. <code>letter-spacing</code>의 <code>-0.04em</code>은 글자 크기의 4%만큼 자간을 줄입니다. <code>em</code>은 그 요소의 글자 크기입니다.</td></tr>
+          <tr><td class="n">55</td><td class="c"><code>.statuses { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }</code></td><td>상태 알약들을 가로로 가운데 모읍니다. <code>flex-wrap: wrap</code>은 한 줄에 다 안 들어가면 다음 줄로 넘깁니다.</td></tr>
+          <tr><td class="n">56</td><td class="c"><code>.status-pill {</code></td><td>채널 상태 알약 하나를 선택합니다.</td></tr>
+          <tr><td class="n">57</td><td class="c"><code>display: inline-flex; align-items: center; gap: 4px;</code></td><td>알약 자신은 줄 안에 놓이면서, 아이콘과 글자는 안쪽에서 가로 정렬됩니다. 아이콘과 글자 사이는 4px입니다.</td></tr>
+          <tr><td class="n">58</td><td class="c"><code>height: 28px; padding: 0 8px; border-radius: 999px;</code></td><td>높이 28px, 좌우 안쪽 여백 8px입니다. 반지름 999px는 높이보다 훨씬 커서 양쪽 끝이 반원이 됩니다.</td></tr>
+          <tr><td class="n">59</td><td class="c"><code>background: #f5f7fa; border: 1px solid #e8edf3; color: #64748b;</code></td><td>기본 알약의 배경, 테두리, 글자색입니다. <code>border</code> 단축은 두께, 스타일, 색 순입니다.</td></tr>
+          <tr><td class="n">60</td><td class="c"><code>}</code></td><td><code>.status-pill</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">61</td><td class="c"><code>.status-pill b { font-weight: 600; }</code></td><td>알약 안의 채널 이름을 조금 굵게 합니다. <code>b</code> 태그를 요소 선택자로 고릅니다.</td></tr>
+          <tr><td class="n">62</td><td class="c"><code>.status-pill em { font-style: normal; color: #94a3b8; }</code></td><td><code>em</code>의 브라우저 기본은 기울임입니다. <code>font-style: normal</code>로 기울임을 끄고, 시간 문구만 더 연한 색으로 둡니다.</td></tr>
+          <tr><td class="n">63</td><td class="c"><code>.status-pill.green { background: #eefbf3; border-color: #d8f3e4; color: #159356; }</code></td><td>클래스 <code>green</code>이 같이 있으면 배경, 테두리, 글자를 녹색 계열로 덮습니다. 채팅상담 알약입니다. 두 클래스 선택자라 56행보다 강합니다.</td></tr>
+          <tr><td class="n">64</td><td class="c"><code>.status-pill.green em { color: #159356; }</code></td><td>녹색 알약 안의 시간까지 같은 녹색으로 맞춥니다. 62행의 회색보다 구체적이라 이깁니다.</td></tr>
+          <tr><td class="n">65</td><td class="c"><code>.status-pill.orange { background: #fff7ed; border-color: #ffedd5; color: #d97706; }</code></td><td>이메일상담 알약을 주황 계열로 덮습니다.</td></tr>
+          <tr><td class="n">66</td><td class="c"><code>.status-pill.orange em { color: #d97706; }</code></td><td>주황 알약의 시간 글자도 주황으로 맞춥니다.</td></tr>
+          <tr><td class="n">68</td><td class="c"><code>.tools { display: flex; align-items: center; gap: 4px; }</code></td><td>모니터, 메시지, 알림, 사용자 상자를 가로 한 줄로 놓고 세로 가운데에 맞춥니다.</td></tr>
+          <tr><td class="n">69</td><td class="c"><code>.icon-btn {</code></td><td>아이콘만 있는 버튼을 선택합니다.</td></tr>
+          <tr><td class="n">70</td><td class="c"><code>width: 32px; height: 32px; border: 0; background: transparent; color: #64748b;</code></td><td>32px 정사각형에서 기본 테두리와 배경을 없앱니다. 아이콘 선 색은 <code>currentColor</code>를 쓰므로 이 <code>color</code>가 아이콘 색이 됩니다.</td></tr>
+          <tr><td class="n">71</td><td class="c"><code>border-radius: 8px; position: relative; display: grid; place-items: center;</code></td><td>모서리를 둥글게 하고, 아이콘을 가운데에 둡니다. <code>relative</code>는 알림 점의 기준 상자가 됩니다.</td></tr>
+          <tr><td class="n">72</td><td class="c"><code>}</code></td><td><code>.icon-btn</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">73</td><td class="c"><code>.icon-btn:hover { background: #f3f5f8; }</code></td><td>마우스를 올렸을 때만 배경을 옅은 회색으로 바꿉니다. 마우스가 벗어나면 이 규칙은 더 이상 맞지 않아 70행의 투명 배경으로 돌아갑니다.</td></tr>
+          <tr><td class="n">74</td><td class="c"><code>.dot {</code></td><td>알림 버튼 안의 빨간 점을 선택합니다.</td></tr>
+          <tr><td class="n">75</td><td class="c"><code>position: absolute; top: 6px; right: 6px; width: 7px; height: 7px;</code></td><td>버튼 흐름에서 빼서, 버튼 위쪽 6px, 오른쪽 6px 위치에 7px 정사각형으로 둡니다.</td></tr>
+          <tr><td class="n">76</td><td class="c"><code>background: #ef4444; border-radius: 50%; border: 1px solid #fff;</code></td><td>빨강으로 칠하고 반지름 50%로 원으로 만듭니다. 흰 테두리는 아이콘과 점이 겹칠 때 경계를 보여 줍니다.</td></tr>
+          <tr><td class="n">77</td><td class="c"><code>}</code></td><td><code>.dot</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">78</td><td class="c"><code>.userbox { display: flex; align-items: center; gap: 8px; margin-left: 6px; }</code></td><td>아바타와 이름 두 줄을 가로로 맞추고, 앞 아이콘과 6px 더 띄웁니다. margin은 요소 바깥 간격입니다.</td></tr>
+          <tr><td class="n">79</td><td class="c"><code>.userbox strong, .userbox em { display: block; }</code></td><td>이름과 admin을 각각 한 줄 차지하게 합니다. <code>em</code>의 기본 display는 inline이라 이 선언이 없으면 이름 옆에 붙습니다.</td></tr>
+          <tr><td class="n">80</td><td class="c"><code>.userbox strong { font-size: 12px; }</code></td><td>사용자 이름을 12px로 고정합니다. 상속값과 같지만, 다른 제목 크기와 섞이지 않게 명시합니다.</td></tr>
+          <tr><td class="n">81</td><td class="c"><code>.userbox em { font-style: normal; color: var(--muted); font-size: 11px; }</code></td><td>admin 문구의 기울임을 끄고 11px 회색으로 둡니다.</td></tr>
+          <tr><td class="n">82</td><td class="c"><code>.avatar, .mini-avatar {</code></td><td>헤더 아바타와 고객정보 작은 아바타를 같은 선언으로 묶습니다.</td></tr>
+          <tr><td class="n">83</td><td class="c"><code>width: 28px; height: 28px; border-radius: 50%;</code></td><td>28px 원을 만듭니다.</td></tr>
+          <tr><td class="n">84</td><td class="c"><code>display: grid; place-items: center; background: var(--blue-soft); color: var(--blue); font-weight: 700;</code></td><td>글자나 아이콘을 원 가운데에 두고, 옅은 파란 배경에 파란 글자로 굵게 표시합니다.</td></tr>
+          <tr><td class="n">85</td><td class="c"><code>}</code></td><td>아바타 블록을 닫습니다.</td></tr>
+          <tr><td class="n">87</td><td class="c"><code>.body {</code></td><td>헤더 아래 본문을 선택합니다.</td></tr>
+          <tr><td class="n">88</td><td class="c"><code>min-height: 0;</code></td><td>Grid 자식의 기본 최소 높이를 풀어, 본문이 창 높이를 넘기지 않게 합니다. 이 값이 있어야 안쪽 <code>overflow: auto</code>가 동작합니다.</td></tr>
+          <tr><td class="n">89</td><td class="c"><code>display: grid;</code></td><td>레일, 왼쪽, 가운데, 오른쪽, 가장자리를 열로 배치합니다.</td></tr>
+          <tr><td class="n">90</td><td class="c"><code>grid-template-columns: 52px 300px minmax(760px, 1fr) 304px 32px;</code></td><td>다섯 열의 너비입니다. 가운데 열은 최소 760px이고 창이 넓으면 남은 공간을 먹습니다.</td></tr>
+          <tr><td class="n">91</td><td class="c"><code>}</code></td><td><code>.body</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">92</td><td class="c"><code>.body.advisor-closed { grid-template-columns: 52px 300px minmax(760px, 1fr) 32px; }</code></td><td>오른쪽 패널을 닫으면 React가 이 클래스를 추가합니다. 304px 열이 빠져 자식 네 개와 열 네 개가 맞습니다. 두 클래스 선택자라 90행보다 강합니다.</td></tr>
+          <tr><td class="n">94</td><td class="c"><code>.rail, .edge { background: #fff; border-right: 1px solid var(--line); }</code></td><td>아이콘 레일과 오른쪽 가장자리를 흰색으로 칠하고 오른쪽에 경계선을 줍니다.</td></tr>
+          <tr><td class="n">95</td><td class="c"><code>.edge { border-right: 0; border-left: 1px solid var(--line); }</code></td><td>가장자리는 오른쪽 선 대신 왼쪽 선을 씁니다. 94행과 구체성이 같고 뒤에 있어서 이 선언이 이깁니다. <code>.rail</code>은 이 선택자에 해당하지 않아 오른쪽 선이 남습니다.</td></tr>
+          <tr><td class="n">96</td><td class="c"><code>.rail, .edge {</code></td><td>같은 두 요소에 배치 선언을 이어서 적습니다. 한 선택자를 여러 블록으로 나눠 써도 선언은 합쳐집니다.</td></tr>
+          <tr><td class="n">97</td><td class="c"><code>display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;</code></td><td>아이콘을 세로로 쌓고 가로 가운데에 맞춥니다. 아이콘 사이 6px, 위아래 안쪽 여백 10px입니다.</td></tr>
+          <tr><td class="n">98</td><td class="c"><code>}</code></td><td>96행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">99</td><td class="c"><code>.rail button, .edge button {</code></td><td>두 막대 안의 버튼만 고릅니다. 페이지의 다른 버튼에는 적용되지 않습니다.</td></tr>
+          <tr><td class="n">100</td><td class="c"><code>width: 36px; height: 36px; border: 0; background: transparent; color: #94a3b8; border-radius: 10px;</code></td><td>36px 정사각형, 테두리 없음, 투명 배경, 회색 아이콘, 둥근 모서리입니다.</td></tr>
+          <tr><td class="n">101</td><td class="c"><code>}</code></td><td>99행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">102</td><td class="c"><code>.rail button.on, .rail button:hover { background: var(--blue-soft); color: var(--blue); }</code></td><td>선택된 아이콘과 마우스를 올린 아이콘을 옅은 파란 배경과 파란 아이콘으로 바꿉니다. <code>.on</code>은 React state가 붙이는 클래스입니다.</td></tr>
+          <tr><td class="n">103</td><td class="c"><code>.edge button, .edge span {</code></td><td>가장자리의 AI Advisor 버튼과 VOC 글자를 고릅니다. 구체성이 99행과 같아서, 겹치는 속성은 이 뒤 선언이 이깁니다.</td></tr>
+          <tr><td class="n">104</td><td class="c"><code>writing-mode: vertical-rl; letter-spacing: 0.08em; color: #64748b; font-size: 11px;</code></td><td>글자를 세로로 돌립니다. <code>vertical-rl</code>은 줄이 오른쪽에서 왼쪽으로 쌓이는 세로쓰기입니다. 자간은 글자 크기의 8%입니다.</td></tr>
+          <tr><td class="n">105</td><td class="c"><code>height: auto; width: 24px; padding: 8px 0; background: transparent; border: 0;</code></td><td>100행의 36px 높이와 너비를 덮어, 글자 높이만큼 늘어나고 너비는 24px가 됩니다. 위아래 padding 8px입니다.</td></tr>
+          <tr><td class="n">106</td><td class="c"><code>}</code></td><td>103행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">108</td><td class="c"><code>.left, .right {</code></td><td>통합상담 열과 AI 열을 같이 고릅니다.</td></tr>
+          <tr><td class="n">109</td><td class="c"><code>min-height: 0; overflow: auto; padding: 10px;</code></td><td>열이 주어진 높이 안에서만 커지고, 카드가 넘치면 그 열에 스크롤이 생깁니다. 사방 10px 여백입니다. <code>overflow: auto</code>는 넘칠 때만 스크롤바를 둡니다.</td></tr>
+          <tr><td class="n">110</td><td class="c"><code>display: flex; flex-direction: column; gap: 8px;</code></td><td>카드들을 세로로 쌓고 카드 사이 8px를 둡니다.</td></tr>
+          <tr><td class="n">111</td><td class="c"><code>}</code></td><td>108행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">112</td><td class="c"><code>.center {</code></td><td>상담 세션과 고객여정이 있는 가운데 열입니다.</td></tr>
+          <tr><td class="n">113</td><td class="c"><code>min-height: 0; overflow: hidden; padding: 10px 8px;</code></td><td>가운데 열 자체는 스크롤하지 않고 넘치는 부분을 자릅니다. 위아래 10px, 좌우 8px입니다. 스크롤은 상담 카드와 여정 목록이 각자 맡습니다.</td></tr>
+          <tr><td class="n">114</td><td class="c"><code>display: grid; grid-template-rows: minmax(0, 1fr) 348px; gap: 8px;</code></td><td>위 행은 남은 높이, 아래 행은 고객여정 348px입니다. 행 사이 8px입니다.</td></tr>
+          <tr><td class="n">115</td><td class="c"><code>}</code></td><td><code>.center</code> 블록을 닫습니다.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="l-card">117–177행. 카드, 왼쪽 목록</h3>
+      <table>
+        <thead><tr><th>행</th><th>코드</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td class="n">117</td><td class="c"><code>.col-title { font-size: 14px; font-weight: 700; padding: 2px 2px 0; }</code></td><td>“통합상담” 제목을 14px 굵은 글자로 두고 위와 좌우에 2px만 줍니다. padding이 세 값이면 위, 좌우, 아래입니다.</td></tr>
+          <tr><td class="n">118</td><td class="c"><code>.card {</code></td><td>흰 카드 공통 클래스입니다. 왼쪽, 가운데, 오른쪽이 함께 씁니다.</td></tr>
+          <tr><td class="n">119</td><td class="c"><code>background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);</code></td><td>흰 배경, 연한 실선, 12px 둥근 모서리입니다.</td></tr>
+          <tr><td class="n">120</td><td class="c"><code>box-shadow: var(--shadow); padding: 12px 14px;</code></td><td>1행에서 만든 옅은 그림자를 적용합니다. 안쪽 여백은 위아래 12px, 좌우 14px입니다.</td></tr>
+          <tr><td class="n">121</td><td class="c"><code>}</code></td><td><code>.card</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">122</td><td class="c"><code>.card-head, .section-head, .session-title, .journey-head, .detail-head {</code></td><td>여러 카드의 제목 줄을 한 규칙으로 묶습니다.</td></tr>
+          <tr><td class="n">123</td><td class="c"><code>display: flex; align-items: center; gap: 8px;</code></td><td>제목, 아이콘, 오른쪽 버튼을 한 줄로 세로 가운데 맞춥니다.</td></tr>
+          <tr><td class="n">124</td><td class="c"><code>}</code></td><td>122행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">125</td><td class="c"><code>.card-head h2, .session-title h2, .journey-head h2, .section-head h3, .section-title, .detail-head h3 {</code></td><td>그 제목 줄 안의 제목 태그를 고릅니다. 브라우저 기본 제목은 크고 여백이 많습니다.</td></tr>
+          <tr><td class="n">126</td><td class="c"><code>margin: 0; font-size: 13px; font-weight: 700;</code></td><td>제목 바깥 여백을 없애고 13px 굵은 글자로 통일합니다.</td></tr>
+          <tr><td class="n">127</td><td class="c"><code>}</code></td><td>125행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">128</td><td class="c"><code>.section-title { margin: 12px 0 8px; }</code></td><td>“처리정보”처럼 줄 전체가 제목인 요소만 위 12px, 아래 8px를 다시 줍니다. 126행의 margin 0과 구체성이 같고 뒤에 있어서 이 제목만 여백이 생깁니다.</td></tr>
+          <tr><td class="n">129</td><td class="c"><code>.section-head { margin: 4px 0 8px; }</code></td><td>“요점지정정보” 줄에 위 4px, 아래 8px를 줍니다.</td></tr>
+          <tr><td class="n">130</td><td class="c"><code>.muted { color: var(--muted); }</code></td><td>“전체 2,462”, “시간제외” 같은 보조 문구를 회색으로 둡니다.</td></tr>
+          <tr><td class="n">131</td><td class="c"><code>.blue { color: var(--blue); }</code></td><td>접수 건수처럼 숫자만 파란색으로 강조합니다.</td></tr>
+          <tr><td class="n">132</td><td class="c"><code>.grow { flex: 1; }</code></td><td>제목 줄의 빈 칸이 남은 가로 공간을 먹게 합니다. 그 결과 오른쪽 버튼이 줄 끝으로 갑니다. <code>flex: 1</code>은 늘어남 1, 줄어듦 1, 기준 크기 0입니다.</td></tr>
+          <tr><td class="n">133</td><td class="c"><code>.linkish { border: 0; background: none; color: var(--blue); padding: 0; }</code></td><td>버튼 모양을 지우고 파란 글자 링크처럼 보이게 합니다. 고객정보등록이 이 클래스입니다. <code>background: none</code>은 배경을 그리지 않습니다.</td></tr>
+          <tr><td class="n">135</td><td class="c"><code>.customer-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }</code></td><td>고객정보 아이콘과 제목을 한 줄로 두고 목록과 8px 띄웁니다.</td></tr>
+          <tr><td class="n">136</td><td class="c"><code>.kv, .detail-list, .summary { display: grid; gap: 6px; margin: 0; }</code></td><td>정의 목록을 Grid로 만들어 항목 사이 6px를 둡니다. 브라우저 기본 margin을 없앱니다.</td></tr>
+          <tr><td class="n">137</td><td class="c"><code>.kv { grid-template-columns: 1fr 1.15fr; }</code></td><td>고객정보만 두 열입니다. 오른쪽 열이 조금 더 넓어 전화번호가 들어갈 자리를 만듭니다.</td></tr>
+          <tr><td class="n">138</td><td class="c"><code>.customer-card .kv { gap: 6px 10px; }</code></td><td>고객 카드 안에서만 세로 간격 6px, 가로 간격 10px로 덮습니다. <code>gap</code>이 두 값이면 행 간격, 열 간격입니다. 자손 선택자라 136행보다 강합니다.</td></tr>
+          <tr><td class="n">139</td><td class="c"><code>.kv div, .detail-list div, .summary div { display: flex; gap: 6px; min-width: 0; }</code></td><td>한 항목의 라벨과 값을 가로로 둡니다. <code>min-width: 0</code>은 Grid 칸 안에서 이 줄이 줄어들 수 있게 합니다.</td></tr>
+          <tr><td class="n">140</td><td class="c"><code>.kv dt, .detail-list dt, .summary dt { color: var(--muted); flex: 0 0 auto; }</code></td><td>라벨은 회색이고 글자 너비만큼만 차지합니다. <code>flex: 0 0 auto</code>는 늘리지도 줄이지도 않고 내용 크기를 유지합니다.</td></tr>
+          <tr><td class="n">141</td><td class="c"><code>.kv dd, .detail-list dd, .summary dd { margin: 0; font-weight: 600; min-width: 0; }</code></td><td>값의 기본 왼쪽 여백을 없애고 조금 굵게 합니다.</td></tr>
+          <tr><td class="n">142</td><td class="c"><code>.customer-card .kv dd { white-space: nowrap; }</code></td><td>고객명과 전화번호가 칸 안에서 줄바꿈되지 않게 합니다. <code>white-space</code>는 공백과 줄바꿈을 다루는 속성입니다.</td></tr>
+          <tr><td class="n">144</td><td class="c"><code>.intake, .recent, .stats, .knowledge { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }</code></td><td>목록의 점과 기본 여백을 없애고, 항목을 세로 Grid로 6px씩 띄웁니다. 위쪽만 8px입니다.</td></tr>
+          <tr><td class="n">145</td><td class="c"><code>.intake li, .recent li, .stats li {</code></td><td>세 목록의 항목을 같이 고릅니다.</td></tr>
+          <tr><td class="n">146</td><td class="c"><code>display: grid; align-items: center; gap: 8px; min-height: 24px;</code></td><td>항목 안을 다시 Grid로 나누고 세로 가운데에 맞춥니다. 최소 높이 24px라 한 줄이 너무 납작하지 않습니다.</td></tr>
+          <tr><td class="n">147</td><td class="c"><code>}</code></td><td>145행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">148</td><td class="c"><code>.intake li { grid-template-columns: 16px 1fr auto; }</code></td><td>접수현황은 색 점 16px, 이름, 건수 순입니다. <code>auto</code> 열은 “6,149건” 너비만큼만 씁니다.</td></tr>
+          <tr><td class="n">149</td><td class="c"><code>.intake strong { color: var(--blue); font-size: 13px; }</code></td><td>건수 숫자를 13px 파란색으로 둡니다.</td></tr>
+          <tr><td class="n">150</td><td class="c"><code>.intake em, .stats em { font-style: normal; color: var(--muted); font-weight: 500; margin-left: 2px; font-size: 11px; }</code></td><td>“건” 단위의 기울임을 끄고 숫자보다 작고 연하게 만듭니다. 숫자와 2px 띄웁니다.</td></tr>
+          <tr><td class="n">151</td><td class="c"><code>.tone { width: 8px; height: 8px; border-radius: 50%; display: block; }</code></td><td>접수현황 앞의 색 점입니다. <code>i</code>는 기본이 inline이라 width가 먹지 않아 <code>display: block</code>으로 상자를 만듭니다.</td></tr>
+          <tr><td class="n">152</td><td class="c"><code>.tone.blue { background: #2f6bff; }</code></td><td>문의접수완료 점입니다.</td></tr>
+          <tr><td class="n">153</td><td class="c"><code>.tone.orange { background: #f59e0b; }</code></td><td>배분중 점입니다.</td></tr>
+          <tr><td class="n">154</td><td class="c"><code>.tone.amber { background: #f5b942; }</code></td><td>통합+WEB문의 점입니다.</td></tr>
+          <tr><td class="n">155</td><td class="c"><code>.tone.violet { background: #8b5cf6; }</code></td><td>프로그램개선요청 점입니다.</td></tr>
+          <tr><td class="n">156</td><td class="c"><code>.tone.green { background: #10b981; }</code></td><td>WEB 배분중 점입니다.</td></tr>
+          <tr><td class="n">157</td><td class="c"><code>.tone.teal { background: #14b8a6; }</code></td><td>WEB 문의완료 점입니다.</td></tr>
+          <tr><td class="n">158</td><td class="c"><code>.tone.slate { background: #64748b; }</code></td><td>WEB 문의답변 점입니다.</td></tr>
+          <tr><td class="n">159</td><td class="c"><code>.tone.pink { background: #ec4899; }</code></td><td>FAQ 피드백 점입니다.</td></tr>
+          <tr><td class="n">160</td><td class="c"><code>.tone.gray { background: #94a3b8; }</code></td><td>이상탐지완료 점입니다.</td></tr>
+          <tr><td class="n">162</td><td class="c"><code>.recent li { grid-template-columns: 36px 1fr auto; }</code></td><td>최근여정은 날짜 36px, 제목, 완료 배지 순입니다.</td></tr>
+          <tr><td class="n">163</td><td class="c"><code>.recent span, .tl-date, .tl-time { color: var(--muted); }</code></td><td>최근여정 날짜와 고객여정 타임라인의 날짜, 시간을 회색으로 둡니다. 서로 다른 컴포넌트의 클래스를 한 선언으로 맞춘 것입니다.</td></tr>
+          <tr><td class="n">164</td><td class="c"><code>.done {</code></td><td>완료 배지를 선택합니다.</td></tr>
+          <tr><td class="n">165</td><td class="c"><code>background: var(--green-soft); color: var(--green); border-radius: 999px;</code></td><td>연한 녹색 배경에 녹색 글자, 알약 모양입니다.</td></tr>
+          <tr><td class="n">166</td><td class="c"><code>padding: 2px 7px; font-size: 11px; font-weight: 700; font-style: normal;</code></td><td>배지 안쪽 여백과 11px 굵은 글자입니다. <code>em</code>에 붙어도 기울지 않게 <code>font-style</code>을 끕니다.</td></tr>
+          <tr><td class="n">167</td><td class="c"><code>}</code></td><td><code>.done</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">169</td><td class="c"><code>.stats li { grid-template-columns: 28px 42px 1fr auto; }</code></td><td>실적은 아이콘, “대기” 같은 이름 42px, 빈 칸, 시간 순입니다. 가운데 <code>1fr</code>가 건수를 왼쪽에, 시간을 오른쪽에 둡니다.</td></tr>
+          <tr><td class="n">170</td><td class="c"><code>.stat-icon {</code></td><td>실적 아이콘 상자를 선택합니다.</td></tr>
+          <tr><td class="n">171</td><td class="c"><code>width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;</code></td><td>26px 둥근 사각형 가운데에 아이콘을 둡니다.</td></tr>
+          <tr><td class="n">172</td><td class="c"><code>background: var(--blue-soft); color: var(--blue);</code></td><td>대기 아이콘의 기본색입니다.</td></tr>
+          <tr><td class="n">173</td><td class="c"><code>}</code></td><td><code>.stat-icon</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">174</td><td class="c"><code>.stat-icon.call { background: #e8f8ef; color: var(--green); }</code></td><td>통화 행만 녹색으로 덮습니다.</td></tr>
+          <tr><td class="n">175</td><td class="c"><code>.stat-icon.after { background: #fff7ed; color: #d97706; }</code></td><td>후처리 행만 주황으로 덮습니다.</td></tr>
+          <tr><td class="n">176</td><td class="c"><code>.stats strong { font-size: 16px; }</code></td><td>52, 15, 67 건수를 16px로 키웁니다.</td></tr>
+          <tr><td class="n">177</td><td class="c"><code>.stats time { color: var(--muted); }</code></td><td>04:30 같은 시간을 회색으로 둡니다. <code>time</code>은 HTML 태그 이름입니다.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="l-form">179–232행. 상담 세션과 입력 폼</h3>
+      <table>
+        <thead><tr><th>행</th><th>코드</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td class="n">179</td><td class="c"><code>.session-card, .journey-card { min-height: 0; display: flex; flex-direction: column; }</code></td><td>두 카드를 세로 Flex로 만듭니다. <code>min-height: 0</code>은 Grid 행이 준 높이 안으로 카드가 줄어들게 합니다.</td></tr>
+          <tr><td class="n">180</td><td class="c"><code>.session-card { overflow: auto; }</code></td><td>상담 필드가 위 행보다 길면 상담 카드 안에서만 스크롤됩니다.</td></tr>
+          <tr><td class="n">181</td><td class="c"><code>.journey-card { overflow: hidden; }</code></td><td>여정 카드는 넘친 내용을 자르고, 스크롤은 안쪽 목록에 맡깁니다. 서버 막대가 카드 아래에 남습니다.</td></tr>
+          <tr><td class="n">182</td><td class="c"><code>.title-badge {</code></td><td>상담 세션 제목 앞의 전화 아이콘 원입니다.</td></tr>
+          <tr><td class="n">183</td><td class="c"><code>width: 22px; height: 22px; border-radius: 50%; background: var(--blue-soft); color: var(--blue);</code></td><td>22px 파란 원과 파란 아이콘입니다.</td></tr>
+          <tr><td class="n">184</td><td class="c"><code>display: grid; place-items: center;</code></td><td>아이콘을 원 가운데에 둡니다.</td></tr>
+          <tr><td class="n">185</td><td class="c"><code>}</code></td><td><code>.title-badge</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">186</td><td class="c"><code>.live-pill, .time-pill {</code></td><td>접수중 알약과 시각 알약을 같이 고릅니다.</td></tr>
+          <tr><td class="n">187</td><td class="c"><code>height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px;</code></td><td>높이 24px의 알약으로 글자를 세로 가운데에 둡니다.</td></tr>
+          <tr><td class="n">188</td><td class="c"><code>background: var(--blue-soft); color: var(--blue); font-weight: 700;</code></td><td>기본은 접수 상태용 파란 알약입니다.</td></tr>
+          <tr><td class="n">189</td><td class="c"><code>}</code></td><td>186행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">190</td><td class="c"><code>.time-pill { background: #f5f7fa; color: #64748b; font-weight: 500; }</code></td><td>시각 알약만 회색 배경과 보통 굵기로 덮습니다. 같은 구체성이고 뒤에 있어서 188행의 파랑을 이깁니다.</td></tr>
+          <tr><td class="n">191</td><td class="c"><code>.session-tools, .journey-head { margin-top: 8px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }</code></td><td>탭과 버튼, 또는 제목과 날짜를 한 줄의 양 끝으로 보냅니다. 위쪽 8px입니다.</td></tr>
+          <tr><td class="n">192</td><td class="c"><code>.tabs, .seg { display: flex; gap: 4px; }</code></td><td>상담 탭과 여정 채널 탭을 가로로 4px 간격에 둡니다.</td></tr>
+          <tr><td class="n">193</td><td class="c"><code>.tabs button, .seg button {</code></td><td>그 탭 버튼들의 기본 모습입니다.</td></tr>
+          <tr><td class="n">194</td><td class="c"><code>border: 0; background: transparent; height: 28px; padding: 0 10px; border-radius: 6px; color: #64748b;</code></td><td>테두리와 배경 없는 28px 높이 글자 버튼입니다.</td></tr>
+          <tr><td class="n">195</td><td class="c"><code>}</code></td><td>193행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">196</td><td class="c"><code>.tabs button.on { color: var(--blue); font-weight: 700; box-shadow: inset 0 -2px 0 var(--blue); border-radius: 0; }</code></td><td>선택된 상담 탭입니다. <code>box-shadow: inset</code>는 상자 안쪽에 그림자를 그립니다. 가로 0, 세로 -2px, 흐림 0이라 글자 아래 2px 파란 줄처럼 보입니다. 테두리를 쓰지 않아 높이가 늘어나지 않습니다. 반지름 0은 줄 끝이 둥글게 잘리지 않게 합니다.</td></tr>
+          <tr><td class="n">197</td><td class="c"><code>.seg button.on { background: var(--blue-soft); color: var(--blue); font-weight: 700; }</code></td><td>선택된 채널 탭은 밑줄 대신 옅은 파란 배경입니다.</td></tr>
+          <tr><td class="n">198</td><td class="c"><code>.tool-buttons, .range, .footer-actions, .form-actions, .stack-buttons { display: flex; gap: 6px; align-items: center; }</code></td><td>버튼 묶음을 가로 6px 간격으로 놓습니다. 상담 도구, 날짜 범위, 대화상자 하단, 폼 하단, 지식 추천 버튼이 이 규칙을 공유합니다.</td></tr>
+          <tr><td class="n">199</td><td class="c"><code>.form-actions { justify-content: flex-end; margin-top: 8px; }</code></td><td>단순종료, 이관, 상담완료를 줄의 오른쪽으로 붙이고 위와 8px 띄웁니다.</td></tr>
+          <tr><td class="n">201</td><td class="c"><code>.btn {</code></td><td>일반 버튼을 선택합니다.</td></tr>
+          <tr><td class="n">202</td><td class="c"><code>height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #d7deea; background: #fff; color: #334155;</code></td><td>높이 28px의 흰 버튼과 연한 테두리입니다.</td></tr>
+          <tr><td class="n">203</td><td class="c"><code>}</code></td><td><code>.btn</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">204</td><td class="c"><code>.btn:hover { border-color: #b9c4d6; }</code></td><td>마우스를 올리면 테두리만 조금 진해집니다.</td></tr>
+          <tr><td class="n">205</td><td class="c"><code>.btn:disabled { opacity: 0.55; cursor: default; }</code></td><td>비활성 버튼은 55% 불투명도로 흐려지고 커서가 기본 화살표로 돌아갑니다. <code>opacity</code>는 요소 전체의 투명도입니다. 27행의 pointer보다 가상 클래스가 더 구체적입니다.</td></tr>
+          <tr><td class="n">206</td><td class="c"><code>.btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }</code></td><td>저장, 상담완료, 문서 열기처럼 주요 버튼을 파란 배경 흰 글자로 덮습니다.</td></tr>
+          <tr><td class="n">207</td><td class="c"><code>.btn.danger { background: #fff; border-color: #fecaca; color: #dc2626; }</code></td><td>삭제 버튼을 흰 배경, 연한 붉은 테두리, 붉은 글자로 둡니다.</td></tr>
+          <tr><td class="n">208</td><td class="c"><code>.btn.sm { height: 26px; padding: 0 8px; }</code></td><td>찾기, 접기, 접점 추가처럼 작은 버튼의 높이와 여백을 줄입니다.</td></tr>
+          <tr><td class="n">209</td><td class="c"><code>.btn.block { width: 100%; }</code></td><td>지식 추천과 답변 복사 버튼이 카드 너비를 가득 쓰게 합니다.</td></tr>
+          <tr><td class="n">211</td><td class="c"><code>.inline-hint, .placeholder, .form-error { color: var(--muted); margin: 8px 0; }</code></td><td>안내 문장, 빈 목록 문장, 폼 오류의 공통 색과 위아래 여백입니다.</td></tr>
+          <tr><td class="n">212</td><td class="c"><code>.form-error { color: #dc2626; }</code></td><td>대화상자의 제목 누락 메시지만 붉은색으로 덮습니다.</td></tr>
+          <tr><td class="n">213</td><td class="c"><code>.session-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; }</code></td><td>상담 폼의 각 구역을 세로로 8px 간격에 쌓습니다.</td></tr>
+          <tr><td class="n">214</td><td class="c"><code>.form-grid { display: grid; gap: 8px 10px; }</code></td><td>입력 칸 묶음의 행 간격 8px, 열 간격 10px입니다. 열 개수는 다음 클래스가 정합니다.</td></tr>
+          <tr><td class="n">215</td><td class="c"><code>.cols-4 { grid-template-columns: 0.8fr 1.3fr 1fr 1.2fr; }</code></td><td>접수채널, 사번, 성명, 전화번호 줄입니다. 사번 칸이 찾기 버튼 때문에 가장 넓습니다.</td></tr>
+          <tr><td class="n">216</td><td class="c"><code>.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }</code></td><td>대분류, 중분류, 소분류처럼 같은 너비 세 칸입니다.</td></tr>
+          <tr><td class="n">217</td><td class="c"><code>.cols-7 { grid-template-columns: 0.8fr 1.3fr 0.9fr 0.6fr 0.8fr 0.8fr 0.8fr; }</code></td><td>에러코드부터 거래오류까지 일곱 칸입니다. 프로그램명 칸이 넓고 백업수 칸이 좁습니다.</td></tr>
+          <tr><td class="n">218</td><td class="c"><code>.field, .area, .editor-grid label { display: flex; flex-direction: column; gap: 4px; min-width: 0; color: var(--muted); font-size: 11px; }</code></td><td>라벨과 입력칸을 세로로 4px 띄웁니다. 라벨 글자는 11px 회색입니다. 입력칸은 25행에서 글자색을 상속받으므로, 아래 219행이 입력칸 글자색을 다시 진하게 덮습니다.</td></tr>
+          <tr><td class="n">219</td><td class="c"><code>.field input, .field select, .combo input, .area textarea, .editor-grid input, .editor-grid select, .editor-grid textarea, .range input {</code></td><td>화면의 입력, 선택, 날짜, 대화상자 입력을 한 목록으로 고릅니다.</td></tr>
+          <tr><td class="n">220</td><td class="c"><code>width: 100%; height: 28px; border: 1px solid #e1e6ee; border-radius: 6px; padding: 0 8px; background: #fff; color: var(--text); font-size: 12px;</code></td><td>칸 너비를 가득 채우고 높이 28px, 연한 테두리, 흰 배경, 12px 진한 글자로 통일합니다. <code>box-sizing</code>이 border-box라 padding이 너비 안에 들어갑니다.</td></tr>
+          <tr><td class="n">221</td><td class="c"><code>}</code></td><td>219행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">222</td><td class="c"><code>.area { display: grid; grid-template-columns: 72px 1fr; align-items: start; }</code></td><td>사용자요청, 문의내용, 처리내용은 218행의 세로 flex를 Grid로 덮습니다. 구체성이 같아 뒤에 있는 <code>display</code>가 이깁니다. 라벨 72px, 입력칸이 나머지이고, 여러 줄 입력의 위쪽에 라벨을 맞춥니다.</td></tr>
+          <tr><td class="n">223</td><td class="c"><code>.area textarea, .editor-grid textarea { height: auto; padding: 6px 8px; resize: vertical; }</code></td><td>여러 줄 입력은 220행의 높이 28px를 풀고 내용 높이로 둡니다. <code>resize: vertical</code>은 사용자가 세로로만 칸을 늘릴 수 있게 합니다.</td></tr>
+          <tr><td class="n">224</td><td class="c"><code>.field input:focus, .field select:focus, .area textarea:focus, .editor-grid input:focus, .editor-grid select:focus, .editor-grid textarea:focus {</code></td><td>키보드 초점이 들어간 입력칸입니다.</td></tr>
+          <tr><td class="n">225</td><td class="c"><code>outline: 2px solid rgba(47, 107, 255, 0.16); border-color: var(--blue);</code></td><td>테두리를 파랑으로 바꾸고 그 바깥에 옅은 파란 선을 한 겹 더 그립니다. <code>outline</code>은 레이아웃 크기에 포함되지 않아 칸이 밀리지 않습니다.</td></tr>
+          <tr><td class="n">226</td><td class="c"><code>}</code></td><td>224행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">227</td><td class="c"><code>.combo { display: flex; gap: 4px; }</code></td><td>사번 입력과 찾기 버튼을 한 줄에 4px 간격으로 둡니다.</td></tr>
+          <tr><td class="n">228</td><td class="c"><code>.combo input { flex: 1; min-width: 0; }</code></td><td>입력칸이 버튼 옆의 남은 너비를 먹고, 긴 값 때문에 버튼을 줄 밖으로 밀지 않습니다.</td></tr>
+          <tr><td class="n">229</td><td class="c"><code>.radios { display: flex; flex-wrap: wrap; gap: 6px 12px; }</code></td><td>처리정보 라디오를 가로로 놓되, 줄이 부족하면 다음 줄로 넘깁니다. 세로 6px, 가로 12px입니다.</td></tr>
+          <tr><td class="n">230</td><td class="c"><code>.radio { display: inline-flex; align-items: center; gap: 4px; color: #334155; font-size: 12px; }</code></td><td>라디오 원과 문구를 한 줄로 맞추고 12px 진한 글자로 둡니다. 부모 라벨의 11px 회색을 덮습니다.</td></tr>
+          <tr><td class="n">231</td><td class="c"><code>.radio input { accent-color: var(--blue); }</code></td><td>브라우저가 그리는 라디오 원의 강조색을 파란색으로 바꿉니다. 원 자체를 직접 그리지는 않습니다.</td></tr>
+          <tr><td class="n">233</td><td class="c"><code>.call-receipt p { margin: 8px 0; color: #475569; }</code></td><td>전화접수 탭의 설명 문단에 위아래 8px와 중간 회색을 줍니다.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="l-journey">235–267행. 고객여정</h3>
+      <table>
+        <thead><tr><th>행</th><th>코드</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td class="n">235</td><td class="c"><code>.journey-body {</code></td><td>타임라인과 선택 상세가 나란히 있는 영역입니다.</td></tr>
+          <tr><td class="n">236</td><td class="c"><code>margin-top: 8px; flex: 1; min-height: 0; overflow: auto;</code></td><td>제목 아래 8px를 띄우고, 카드 안의 남은 높이를 모두 차지합니다. 내용이 넘치면 이 영역만 스크롤됩니다.</td></tr>
+          <tr><td class="n">237</td><td class="c"><code>display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.75fr); gap: 12px;</code></td><td>왼쪽 타임라인이 약 두 배 넓고, 오른쪽 상세는 최소 220px입니다. 사이 12px입니다.</td></tr>
+          <tr><td class="n">238</td><td class="c"><code>}</code></td><td><code>.journey-body</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">239</td><td class="c"><code>.timeline { position: relative; display: flex; flex-direction: column; gap: 2px; }</code></td><td>여정 행을 세로로 2px 간격에 쌓습니다. <code>relative</code>는 다음 세로선의 기준 상자입니다.</td></tr>
+          <tr><td class="n">240</td><td class="c"><code>.timeline::before {</code></td><td>타임라인 앞에 실제 태그가 아닌 장식 상자를 만듭니다.</td></tr>
+          <tr><td class="n">241</td><td class="c"><code>content: ""; position: absolute; left: 91px; top: 18px; bottom: 18px; width: 2px; background: #e6ebf2;</code></td><td><code>content</code>가 있어야 가상 요소가 생깁니다. 빈 문자열이라도 적어야 합니다. 왼쪽 91px, 위아래 18px를 남긴 2px 세로선입니다. 날짜 36px와 시간 40px와 간격을 더한 위치가 아이콘 열입니다.</td></tr>
+          <tr><td class="n">242</td><td class="c"><code>}</code></td><td>가상 요소 블록을 닫습니다.</td></tr>
+          <tr><td class="n">243</td><td class="c"><code>.tl-item {</code></td><td>여정 한 행 버튼입니다.</td></tr>
+          <tr><td class="n">244</td><td class="c"><code>position: relative; z-index: 1; width: 100%; text-align: left; border: 0; background: transparent;</code></td><td>행을 세로선보다 위에 올리고, 버튼 기본 가운데 정렬을 왼쪽으로 바꿉니다. 너비 100%라 행 전체가 클릭 영역입니다.</td></tr>
+          <tr><td class="n">245</td><td class="c"><code>display: grid; grid-template-columns: 36px 40px 22px minmax(0, 1fr) auto; gap: 6px; align-items: center;</code></td><td>날짜, 시간, 아이콘, 제목, 완료 배지 다섯 칸입니다.</td></tr>
+          <tr><td class="n">246</td><td class="c"><code>padding: 5px 8px; border-radius: 8px;</code></td><td>행 안쪽 여백과, 선택됐을 때 보일 둥근 배경의 모서리입니다.</td></tr>
+          <tr><td class="n">247</td><td class="c"><code>}</code></td><td><code>.tl-item</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">248</td><td class="c"><code>.tl-item.on { background: #f4f7ff; }</code></td><td>선택된 여정 행만 옅은 파란 배경을 칠합니다.</td></tr>
+          <tr><td class="n">249</td><td class="c"><code>.tl-node {</code></td><td>채널 아이콘을 감싼 원입니다.</td></tr>
+          <tr><td class="n">250</td><td class="c"><code>width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;</code></td><td>22px 원 가운데에 아이콘을 둡니다.</td></tr>
+          <tr><td class="n">251</td><td class="c"><code>background: #fff; color: var(--blue); border: 1px solid #dbe5ff;</code></td><td>흰 원과 파란 아이콘, 연한 파란 테두리입니다. 흰 배경이 뒤의 세로선을 가립니다.</td></tr>
+          <tr><td class="n">252</td><td class="c"><code>}</code></td><td><code>.tl-node</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">253</td><td class="c"><code>.tl-node.SMS { color: #7c3aed; border-color: #ddd6fe; }</code></td><td>SMS 행만 아이콘과 테두리를 보라색으로 바꿉니다. 클래스 이름은 JSX의 채널 값 “SMS”와 같습니다.</td></tr>
+          <tr><td class="n">254</td><td class="c"><code>.tl-copy { display: flex; flex-direction: column; min-width: 0; }</code></td><td>제목과 요약을 세로로 쌓습니다. <code>min-width: 0</code>이 있어야 다음 줄의 말줄임이 동작합니다.</td></tr>
+          <tr><td class="n">255</td><td class="c"><code>.tl-copy b { font-size: 12px; }</code></td><td>여정 제목을 12px로 둡니다.</td></tr>
+          <tr><td class="n">256</td><td class="c"><code>.tl-copy em { color: var(--muted); font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }</code></td><td>요약이 한 줄을 넘으면 숨기고 끝에 말줄임표를 붙입니다. 세 속성이 같이 있어야 말줄임이 됩니다. 줄바꿈을 막고, 넘치는 부분을 자르고, 잘린 표시를 말줄임으로 바꿉니다.</td></tr>
+          <tr><td class="n">257</td><td class="c"><code>.detail { background: #f8fafc; border-radius: 10px; padding: 10px 12px; }</code></td><td>선택 접점 상세 패널의 배경과 여백입니다.</td></tr>
+          <tr><td class="n">258</td><td class="c"><code>.detail-head { margin-bottom: 8px; }</code></td><td>상세 제목과 목록 사이를 8px 띄웁니다.</td></tr>
+          <tr><td class="n">259</td><td class="c"><code>.server-bar, .confirm-row {</code></td><td>서버 연동 막대와 삭제 확인 줄을 같이 고릅니다.</td></tr>
+          <tr><td class="n">260</td><td class="c"><code>flex: none; margin-top: 8px; display: flex; align-items: center; gap: 6px;</code></td><td>세로 Flex 카드 안에서 이 줄은 줄어들지 않습니다. 내용 높이만큼 남고, 안쪽 항목은 가로 가운데 정렬됩니다.</td></tr>
+          <tr><td class="n">261</td><td class="c"><code>background: #f8fafc; border-radius: 8px; padding: 6px 8px;</code></td><td>옅은 회색 막대와 안쪽 여백입니다.</td></tr>
+          <tr><td class="n">262</td><td class="c"><code>}</code></td><td>259행 블록을 닫습니다.</td></tr>
+          <tr><td class="n">263</td><td class="c"><code>.server-tag {</code></td><td>“서버 연동” 태그입니다.</td></tr>
+          <tr><td class="n">264</td><td class="c"><code>background: var(--blue-soft); color: var(--blue); border-radius: 999px; padding: 2px 8px; font-weight: 700;</code></td><td>작은 파란 알약으로 만듭니다.</td></tr>
+          <tr><td class="n">265</td><td class="c"><code>}</code></td><td><code>.server-tag</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">266</td><td class="c"><code>.server-log { color: #64748b; font-variant-numeric: tabular-nums; }</code></td><td>마지막 요청 로그를 회색으로 둡니다. <code>tabular-nums</code>는 숫자 폭을 같게 해 상태 코드가 바뀌어도 글자가 들썩이지 않게 합니다.</td></tr>
+          <tr><td class="n">267</td><td class="c"><code>.confirm-row { background: #fff7f7; color: #991b1b; }</code></td><td>삭제 확인 줄만 연한 붉은 배경과 붉은 글자로 덮습니다. 260행의 flex는 그대로 남습니다.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="l-right">269–320행. AI 열, 대화상자, 배너, 좁은 창</h3>
+      <table>
+        <thead><tr><th>행</th><th>코드</th><th>하는 일</th></tr></thead>
+        <tbody>
+          <tr><td class="n">269</td><td class="c"><code>.advisor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }</code></td><td>의도 분석과 감정분석을 같은 너비 두 칸으로 나눕니다.</td></tr>
+          <tr><td class="n">270</td><td class="c"><code>.advisor-grid div, .confidence { background: #f8fafc; border-radius: 8px; padding: 8px; }</code></td><td>그 두 칸과 신뢰도 상자에 같은 회색 배경과 여백을 줍니다.</td></tr>
+          <tr><td class="n">271</td><td class="c"><code>.advisor-grid span, .confidence span { display: block; color: var(--muted); }</code></td><td>작은 라벨을 한 줄 차지하는 회색 글자로 만듭니다. <code>span</code>의 기본은 inline입니다.</td></tr>
+          <tr><td class="n">272</td><td class="c"><code>.confidence { margin-top: 8px; }</code></td><td>신뢰도 상자를 위의 두 칸과 8px 띄웁니다. 270행의 배경은 그대로입니다.</td></tr>
+          <tr><td class="n">273</td><td class="c"><code>.confidence b { color: var(--blue); }</code></td><td>96% 숫자만 파란색으로 둡니다.</td></tr>
+          <tr><td class="n">274</td><td class="c"><code>.bar { height: 6px; background: #e8eef8; border-radius: 99px; margin: 6px 0; overflow: hidden; }</code></td><td>막대의 트랙입니다. 높이 6px의 둥근 회색 줄이고, 자식이 모서리 밖으로 나가지 않게 자릅니다.</td></tr>
+          <tr><td class="n">275</td><td class="c"><code>.bar i { display: block; height: 100%; background: var(--blue); }</code></td><td>채워진 부분입니다. 높이는 트랙과 같고, 너비는 JSX의 <code>style="width: 96%"</code>가 정합니다. CSS는 색과 높이만 맡습니다.</td></tr>
+          <tr><td class="n">276</td><td class="c"><code>.confidence p, .flow-note, .type-line { margin: 0; color: var(--muted); }</code></td><td>신뢰도 설명, 답변 흐름, 상담유형 줄의 기본 문단 여백을 없애고 회색으로 둡니다.</td></tr>
+          <tr><td class="n">277</td><td class="c"><code>.knowledge li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid #f1f4f8; }</code></td><td>지식 한 건은 번호 28px와 제목입니다. 위쪽 선으로 항목을 구분합니다.</td></tr>
+          <tr><td class="n">278</td><td class="c"><code>.knowledge em {</code></td><td>01, 02, 03 번호입니다.</td></tr>
+          <tr><td class="n">279</td><td class="c"><code>font-style: normal; color: var(--blue); font-weight: 700;</code></td><td>기울임을 끄고 굵은 파란 숫자로 만듭니다.</td></tr>
+          <tr><td class="n">280</td><td class="c"><code>}</code></td><td><code>.knowledge em</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">281</td><td class="c"><code>.knowledge strong, .knowledge span { display: block; }</code></td><td>제목과 설명을 각각 한 줄로 내립니다.</td></tr>
+          <tr><td class="n">282</td><td class="c"><code>.knowledge span { color: var(--muted); }</code></td><td>설명 줄만 회색으로 둡니다. 281행의 display는 남고 color만 추가됩니다.</td></tr>
+          <tr><td class="n">283</td><td class="c"><code>.stack-buttons { margin-top: 8px; flex-direction: column; }</code></td><td>198행에서 가로 flex였던 버튼 묶음을 세로로 바꿉니다. 문서 열기와 KMS 버튼이 위아래로 놓입니다. 방향만 덮고 gap은 남습니다.</td></tr>
+          <tr><td class="n">284</td><td class="c"><code>.guide {</code></td><td>추천 답변 문단입니다.</td></tr>
+          <tr><td class="n">285</td><td class="c"><code>margin: 8px 0; padding: 10px; border-radius: 8px; background: #f5f8ff; color: #334155;</code></td><td>위아래 8px, 안쪽 10px의 옅은 파란 인용 상자입니다.</td></tr>
+          <tr><td class="n">286</td><td class="c"><code>}</code></td><td><code>.guide</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">287</td><td class="c"><code>.flow-note { margin-bottom: 8px; }</code></td><td>“호환 → 조치 → 결과 안내” 아래에 8px를 더합니다. 276행이 margin을 0으로 만들었고, 이 선언이 아래쪽만 다시 엽니다. 단축 속성 <code>margin</code> 전체를 다시 쓰면 네 방향이 같이 바뀌므로 여기서는 <code>margin-bottom</code>만 적습니다.</td></tr>
+          <tr><td class="n">288</td><td class="c"><code>.type-line { margin-top: 8px; }</code></td><td>상담유형 줄을 요약 목록과 8px 띄웁니다.</td></tr>
+          <tr><td class="n">289</td><td class="c"><code>.type-line b { color: var(--text); }</code></td><td>유형 경로만 부모의 회색이 아니라 본문 색으로 되돌립니다.</td></tr>
+          <tr><td class="n">290</td><td class="c"><code>.keywords { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }</code></td><td>키워드 알약을 가로로 놓되 넘치면 다음 줄로 보냅니다.</td></tr>
+          <tr><td class="n">291</td><td class="c"><code>.keywords span { background: #f1f5f9; color: #475569; border-radius: 999px; padding: 3px 8px; }</code></td><td>키워드 하나를 작은 회색 알약으로 만듭니다.</td></tr>
+          <tr><td class="n">293</td><td class="c"><code>.editor {</code></td><td>접점 추가와 수정의 <code>&lt;dialog&gt;</code>입니다.</td></tr>
+          <tr><td class="n">294</td><td class="c"><code>border: 0; border-radius: 14px; padding: 0; width: min(560px, calc(100vw - 32px));</code></td><td>브라우저 기본 대화상자 테두리와 여백을 없앱니다. 너비는 560px와 “창 너비 빼기 32px” 중 작은 값입니다. <code>calc</code>는 서로 다른 단위를 계산합니다. <code>vw</code>는 창 너비의 1%입니다.</td></tr>
+          <tr><td class="n">295</td><td class="c"><code>box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);</code></td><td>아래로 24px, 흐림 60px의 진한 그림자로 대화상자를 띄웁니다.</td></tr>
+          <tr><td class="n">296</td><td class="c"><code>}</code></td><td><code>.editor</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">297</td><td class="c"><code>.editor::backdrop { background: rgba(15, 23, 42, 0.38); }</code></td><td>대화상자가 열릴 때 브라우저가 만드는 뒤 막입니다. 화면 전체를 38% 투명도의 어두운 색으로 덮습니다.</td></tr>
+          <tr><td class="n">298</td><td class="c"><code>.editor form { padding: 16px; }</code></td><td>대화상자 테두리 대신 폼에 16px 여백을 줍니다. 293행에서 padding을 0으로 둔 이유입니다.</td></tr>
+          <tr><td class="n">299</td><td class="c"><code>.editor header, .editor footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }</code></td><td>제목과 API 경로, 삭제와 저장 버튼을 한 줄의 양 끝으로 보냅니다.</td></tr>
+          <tr><td class="n">300</td><td class="c"><code>.editor header h2 { margin: 0; font-size: 16px; }</code></td><td>대화상자 제목의 기본 여백을 없애고 16px로 둡니다.</td></tr>
+          <tr><td class="n">301</td><td class="c"><code>.editor header span { color: var(--muted); }</code></td><td>POST와 PUT 경로 문구를 회색으로 둡니다.</td></tr>
+          <tr><td class="n">302</td><td class="c"><code>.editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }</code></td><td>대화상자 입력을 두 열로 놓고 제목과 14px 띄웁니다.</td></tr>
+          <tr><td class="n">303</td><td class="c"><code>.editor-grid .span-2 { grid-column: span 2; }</code></td><td>상담내용과 처리결과 칸이 두 열을 모두 차지하게 합니다. <code>grid-column: span 2</code>는 다음 두 칸을 합칩니다.</td></tr>
+          <tr><td class="n">304</td><td class="c"><code>.editor footer { margin-top: 12px; }</code></td><td>버튼 줄을 입력 칸과 12px 띄웁니다. 299행의 flex는 유지됩니다.</td></tr>
+          <tr><td class="n">306</td><td class="c"><code>.banner {</code></td><td>서버 오류 배너입니다.</td></tr>
+          <tr><td class="n">307</td><td class="c"><code>position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 20;</code></td><td>문서 흐름에서 빼서 위쪽 60px, 가로 가운데에 겹칩니다. <code>.app</code>에 position이 없어서 기준은 페이지입니다. 다른 내용 위에 올라오도록 20층을 줍니다.</td></tr>
+          <tr><td class="n">308</td><td class="c"><code>display: flex; gap: 10px; align-items: center; background: #fff1f2; color: #9f1239;</code></td><td>오류 문장과 다시 시도 버튼을 가로로 두고, 연한 붉은 배경에 붉은 글자로 표시합니다.</td></tr>
+          <tr><td class="n">309</td><td class="c"><code>border: 1px solid #fecdd3; border-radius: 8px; padding: 8px 12px;</code></td><td>배너 테두리와 안쪽 여백입니다.</td></tr>
+          <tr><td class="n">310</td><td class="c"><code>}</code></td><td><code>.banner</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">311</td><td class="c"><code>.banner button { border: 0; background: #9f1239; color: #fff; border-radius: 6px; height: 26px; padding: 0 8px; }</code></td><td>배너 안의 다시 시도 버튼만 붉은 배경 흰 글자로 바꿉니다. <code>.btn</code> 클래스가 없으므로 201행 규칙은 적용되지 않습니다.</td></tr>
+          <tr><td class="n">312</td><td class="c"><code>.toast {</code></td><td>저장, 추가, 삭제 성공 알림입니다.</td></tr>
+          <tr><td class="n">313</td><td class="c"><code>position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30;</code></td><td>창 아래 18px, 가로 가운데에 고정합니다. 배너보다 높은 30층입니다. 스크롤해도 창 기준으로 남아 있습니다.</td></tr>
+          <tr><td class="n">314</td><td class="c"><code>background: #111827; color: #fff; border-radius: 999px; padding: 8px 14px;</code></td><td>진한 배경의 흰 글자 알약입니다.</td></tr>
+          <tr><td class="n">315</td><td class="c"><code>box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);</code></td><td>토스트를 화면 위에 떠 보이게 하는 그림자입니다.</td></tr>
+          <tr><td class="n">316</td><td class="c"><code>}</code></td><td><code>.toast</code> 블록을 닫습니다.</td></tr>
+          <tr><td class="n">318</td><td class="c"><code>@media (max-width: 1500px) {</code></td><td>창 너비가 1500px 이하일 때만 안의 규칙을 적용합니다. 조건은 브라우저 창 너비이고, 31행의 레이아웃 최소 너비와는 별개입니다. 창이 1440px보다 좁으면 페이지는 가로로 스크롤되면서 이 조건도 맞습니다.</td></tr>
+          <tr><td class="n">319</td><td class="c"><code>.cols-7 { grid-template-columns: repeat(4, minmax(0, 1fr)); }</code></td><td>일곱 칸 입력 줄을 같은 너비 네 칸으로 바꿉니다. 일곱 항목은 다음 줄로 넘어갑니다. Grid는 열이 모자라면 자식을 다음 행에 놓습니다.</td></tr>
+          <tr><td class="n">320</td><td class="c"><code>}</code></td><td>미디어 쿼리 블록을 닫습니다.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>9. 한 줄이 화면까지 가는 예</h2>
+      <p>저장 버튼은 JSX에서 <code>className="btn primary"</code>입니다. 계산은 이렇게 겹칩니다.</p>
+      <ol>
+        <li>27행이 모든 버튼의 커서를 pointer로 둡니다.</li>
+        <li>201행이 <code>.btn</code>이라 높이, 흰 배경, 테두리를 줍니다.</li>
+        <li>206행이 <code>.btn.primary</code>라 배경과 테두리와 글자색을 파랑과 흰색으로 덮습니다. 클래스가 하나 더 있어 201행보다 강합니다.</li>
+        <li>마우스를 올리면 204행 <code>.btn:hover</code>도 맞습니다. 이 선택자와 206행 <code>.btn.primary</code>는 구체성이 같습니다. 클래스 하나와 가상 클래스 하나가 클래스 둘과 같은 세기이고, 206행이 뒤에 있습니다. 그래서 주요 버튼의 테두리는 마우스를 올려도 파랑으로 남습니다. 흰 버튼만 204행의 테두리색을 봅니다.</li>
+        <li><code>disabled</code>가 되면 205행이 투명도를 낮춥니다. 205행은 배경색을 바꾸지 않으므로 206행의 파란 배경은 남고, 그 위에 투명도만 곱해집니다.</li>
+      </ol>
+      <p>이 순서가 CSS를 읽을 때의 기본 순서입니다. 선택자가 누구를 고르는지 보고, 그 속성이 상속되는지 보고, 같은 속성을 적은 다른 규칙이 있는지 확인하면 됩니다.</p>
+    </main>
+  </body>
+</html>
