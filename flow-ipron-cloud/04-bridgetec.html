@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bridgetec 연동 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav active" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>Bridgetec 패키지는 다른 DB를 읽는 창입니다</h1>
+    <p class="lead"><code>com.wecoms24.bridgetec</code>는 상담 내용을 저장하지 않습니다. 아이프론 클라우드(브리지텍)가 가진 상담사·조직·계정·STT 문장을 우리 API 모양으로 바꿔 프론트에 줍니다. 파일이 적고, Controller → Service → Mapper 세 칸이 그대로 보입니다.</p>
+
+    <h2>왜 Flow CRUD를 안 쓰나</h2>
+    <p>브리지텍 테이블은 우리 엔티티 규칙(<code>entityId</code>, <code>TENANT_EID</code>, <code>ENTITY_STATUS</code>)을 따르지 않습니다. 뷰 이름이 <code>V_SAAS_APP_AGENT_INFO</code>처럼 SaaS 스키마입니다. 그래서 JPA 엔티티로 매핑하지 않고, MyBatis가 SELECT 결과 컬럼을 Java 필드에 그대로 담습니다. 모델 클래스에는 <code>@Entity</code>가 없습니다. 조회용 객체입니다.</p>
+
+    <h2>DB 연결이 갈라지는 지점</h2>
+    <p><code>config/FlowBridgetecDataSourceConfig</code>가 세 개의 빈을 만듭니다.</p>
+    <ol class="steps">
+      <li><code>DataSource</code> — HikariCP. URL·계정은 <code>FlowBridgetecDataSourceProperties</code>가 프로퍼티에서 읽습니다. 풀 옵션(최대 연결, 타임아웃, readOnly)도 여기 있습니다.</li>
+      <li><code>DataSourceTransactionManager</code> — 이름 상수 <code>BRIDGETEC_DB_TRANSACTION_MANAGER</code>. Flow 본체의 <code>flowMainTransactionManager</code>와 다릅니다. 브리지텍 조회와 우리 티켓 저장은 한 트랜잭션으로 묶이지 않습니다.</li>
+      <li><code>SqlSessionFactory</code> — 이름 <code>flowBridgetecSqlSessionFactory</code>. XML 위치는 <code>classpath*:mapper/bridgetec/*.xml</code>.</li>
+    </ol>
+    <p><code>@MapperScan(basePackages = "...bridgetec.mapper", sqlSessionFactoryRef = "flowBridgetecSqlSessionFactory")</code> 때문에 <code>BridgetecModelMapper</code> 인터페이스의 메서드가 그 팩토리의 XML과 연결됩니다. 스캔 패키지를 빼먹으면 메서드를 호출해도 쿼리를 찾지 못합니다.</p>
+
+    <h2>Mapper 한 장이 쿼리를 다 가집니다</h2>
+    <p>인터페이스 <code>bridgetec/mapper/BridgetecModelMapper.java</code>와 XML <code>src/main/resources/mapper/bridgetec/BridgetecModelMapper.xml</code>의 namespace가 같습니다. 메서드 이름과 <code>&lt;select id=""&gt;</code>가 같아야 합니다.</p>
+    <table>
+      <thead><tr><th>메서드</th><th>읽는 대상</th><th>쓰는 곳</th></tr></thead>
+      <tbody>
+        <tr><td><code>findCounselorForSoftphoneLogin</code></td><td><code>V_SAAS_APP_AGENT_INFO</code>에서 AGENT_ID, DN_NO</td><td>소프트폰 로그인. 테넌트의 <code>portalAccountId</code>와 상담사 이름.</td></tr>
+        <tr><td><code>findCounselorByTenantIdAndAgentId</code></td><td>같은 뷰의 상담사 한 명. 내선, 등급, STT·채팅 사용 여부.</td><td>상담사 상세.</td></tr>
+        <tr><td><code>findCounselorByTenantId</code></td><td>계정 + 이름으로 상담사.</td><td>이름 검색.</td></tr>
+        <tr><td><code>findAllCounselorsByTenantId</code></td><td>그 계정의 상담사 목록.</td><td>상담사 화면.</td></tr>
+        <tr><td><code>hasSubscribedAssistPremium</code></td><td>구독 상품 중 어시스트 프리미엄.</td><td>조회한 상담사 객체에 <code>assistPremiumAuthYn</code>을 채움.</td></tr>
+        <tr><td><code>findAllOrganizationsByTenantId</code></td><td><code>V_SAAS_APP_GROUP_INFO</code></td><td>그룹, 상위 그룹, 계층.</td></tr>
+        <tr><td><code>findTenantByTenantId</code></td><td><code>TB_SAAS_ACCOUNTS</code></td><td>회사명, 도메인, 관리자, 로고, CRM·웹챗 URL.</td></tr>
+        <tr><td><code>findTenantMasterByTenantId</code></td><td><code>TB_CC_TENANTMASTER</code></td><td>테넌트 이름.</td></tr>
+        <tr><td><code>findTenantRepresentNumber</code></td><td>대표번호.</td><td>발신 화면.</td></tr>
+        <tr><td><code>hasTenantRemainingTime</code></td><td><code>TB_SAAS_SUBSCRIPTIONS</code> 등. 상품 <code>outbound_call</code>, 상태 active, 잔여 시간 &gt; 0.</td><td>아웃바운드 가능 여부. true/false.</td></tr>
+        <tr><td><code>getSttTranscript</code></td><td><code>VW_RESULTSENTENCE</code>. 키는 UCID.</td><td>통화 문장 목록. 시각 오프셋, 송수신 구분, 문장.</td></tr>
+      </tbody>
+    </table>
+    <p>XML의 <code>AGENT_ID as agentId</code>처럼 별칭이 Java 필드 이름입니다. 별칭이 틀리면 필드는 null로 남고 예외는 안 납니다. 화면에서 내선이 비어 있으면 XML 별칭과 모델 필드를 먼저 비교합니다.</p>
+    <p>WHERE의 <code>ACCOUNT_ID</code>는 우리 <code>Tenant.entityId</code>가 아닐 수 있습니다. 소프트폰 로그인 서비스는 우리 테넌트를 <code>TenantDao</code>로 찾은 다음 <code>tenant.getPortalAccountId()</code>를 쿼리에 넘깁니다. 우리 PK와 포털 계정 id를 섞어 넣으면 상담사를 못 찾습니다.</p>
+
+    <h2>서비스가 하는 얇은 일</h2>
+    <p>Flow 서비스처럼 부모 클래스가 없습니다. <code>@Service</code> + 생성자 주입입니다.</p>
+    <p><code>BridgetecCounselorService.getBridgetecCounselorForSoftphoneLogin</code>의 순서는 다음과 같습니다.</p>
+    <ol class="steps">
+      <li>우리 DB <code>TenantDao.findById(tenantId)</code>. 없으면 <code>FlowException(NOT_FOUND_ENTITY)</code>.</li>
+      <li>그 테넌트의 포털 계정 id와 상담사 이름으로 매퍼 호출.</li>
+      <li>결과 <code>BridgetecCounselor</code>를 그대로 반환. 컨트롤러가 JSON으로 직렬화.</li>
+    </ol>
+    <p>다른 조회 메서드는 매퍼 결과에 <code>hasSubscribedAssistPremium</code> 값을 실어 필드 하나를 더 채웁니다. 쿼리 두 번입니다. 목록 쿼리에는 프리미엄 컬럼이 없기 때문입니다.</p>
+    <p>조직·테넌트·STT·상태·전광판도 같은 패턴입니다. <code>organization/factory</code>, <code>tenant/factory</code>, <code>counselor/factory</code>는 조회 결과를 우리 화면 모델로 바꿀 때 쓰는 조립 클래스입니다. 쿼리 자체는 매퍼에만 있습니다.</p>
+
+    <h2>컨트롤러와 URL</h2>
+    <table>
+      <thead><tr><th>클래스</th><th>메서드와 경로</th><th>반환</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>BridgetecCounselorController</code></td>
+          <td><code>GET /rest/api/v1/bridgetec/counselor/{tenantId}/{name}</code></td>
+          <td>소프트폰 로그인용 상담사. 메서드 이름이 <code>canTenantMakeOutboundCall</code>로 되어 있으나, 실제로는 상담사 조회입니다. 호출부는 URL을 기준으로 보면 됩니다.</td>
+        </tr>
+        <tr>
+          <td><code>BridgetecTenantController</code></td>
+          <td><code>GET /bridgetec/tenant/{tenantId}</code><br/><code>GET /bridgetec/tenant/{tenantId}/numbers</code></td>
+          <td>테넌트 마스터, 대표번호 문자열.</td>
+        </tr>
+        <tr>
+          <td><code>BridgetecSttController</code></td>
+          <td><code>GET /bridgetec/stt/{tenantId}/{ucid}</code></td>
+          <td><code>BridgetecSttTranscript</code> 목록.</td>
+        </tr>
+        <tr>
+          <td><code>BridgetecBillboardController</code></td>
+          <td><code>POST /bridgetec/billboard/enc</code></td>
+          <td>전광판에 넘길 암호화된 계정 id 문자열. 요청 본문은 <code>GetEncryptedAccountIdRequest</code>.</td>
+        </tr>
+        <tr>
+          <td><code>StatusController</code></td>
+          <td><code>GET /rest/api/v1/status/{tenantId}/call</code></td>
+          <td>아웃바운드 가능 여부 boolean. 패키지는 bridgetec이지만 URL 상수만 <code>REST_API_STATUS</code>입니다.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>전광판은 왼쪽 메뉴의 <code>billboard</code> 항목이 시스템 변수에서 URL을 읽고, 계정 id를 이 API로 암호화해 붙입니다. 구현은 <code>SidebarNavigation.vue</code>와 <code>bridgetecApi.js</code>입니다.</p>
+    <p><code>util/EmailDecryptUtil</code>은 브리지텍에 저장된 이메일을 우리 쪽에서 풀 때 쓰는 유틸입니다. 컨트롤러에 직접 노출된 API는 아닙니다.</p>
+
+    <h2>프론트에서 부르는 위치</h2>
+    <p>API 함수는 <code>front/src/js/api/bridgetecApi.js</code>에 모여 있습니다. 상담 화면이 주로 호출합니다. 소프트폰 컴포넌트(<code>ipron/components/common/SoftPhone3.vue</code> 등)가 로그인 시 상담사 내선을 받고, 상담 이력의 STT 팝업이 ucid로 문장을 가져옵니다. 관리 탭의 일반 CRUD는 이 매퍼를 거치지 않습니다.</p>
+
+    <div class="callout ok">
+      <strong>수정할 때 손대는 파일</strong>
+      컬럼을 더 보여 주려면 모델 필드, Mapper 인터페이스 메서드(필요 시), XML SELECT, 그 값을 그리는 Vue를 같이 바꿉니다. 서비스는 매퍼를 통과만 시키는 경우가 많아서, 계산이 없으면 서비스를 안 고쳐도 됩니다. 우리 테넌트와 포털 계정을 섞는 로직이 있으면 서비스에 있습니다.
+    </div>
+
+    <p class="footer-note">다음: <a href="05-realtime.html">스케줄러와 웹소켓</a></p>
+  </main>
+</div>
+</body>
+</html>

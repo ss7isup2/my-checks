@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>상담 화면 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav active" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>상담 화면은 페이지 하나 = 주소 하나</h1>
+    <p class="lead"><code>front/src/ipron</code>은 상담원이 로그인해서 쓰는 화면입니다. 왼쪽 메뉴가 있고, 오른쪽은 라우터가 그린 페이지입니다. 페이지 파일은 짧고, 복잡한 조각은 <code>ipron/components</code>로 빠져 있습니다.</p>
+
+    <h2>로그인 전과 후</h2>
+    <p><code>PreAuthLayout</code>은 헤더·메뉴 없이 가운데 폼만 둡니다. 페이지는 <code>LoginPage</code>, <code>EmailRegistrationPage</code>, <code>PasswordChangePage</code>, <code>EmailVerificationPage</code>, <code>TwoFactorAuthPage</code>, <code>PasswordResetVerificationPage</code>입니다. 모두 <code>/{tenantName}/...</code> 아래에 있어, 주소의 첫 조각이 테넌트 서브도메인입니다. 로그인 API에 그 값을 넘깁니다.</p>
+    <p>로그인이 끝나면 <code>PostAuthLayout</code>입니다.</p>
+<pre><code>&lt;header&gt;&lt;HeaderBar /&gt;&lt;/header&gt;
+&lt;aside&gt;&lt;SidebarNavigation /&gt;&lt;/aside&gt;
+&lt;q-page-container&gt;
+  &lt;router-view /&gt;   &lt;!-- 여기만 페이지마다 바뀜 --&gt;
+&lt;/q-page-container&gt;</code></pre>
+    <p>이 레이아웃은 새로고침(F5, Ctrl+R)을 가로챕니다. 확인하면 소프트폰 소켓 <code>window.websip.sockClose()</code>를 호출한 뒤 새로고침합니다. 통화 중 실수로 페이지가 날아가는 것을 막기 위한 처리입니다.</p>
+
+    <h2>왼쪽 메뉴가 생기는 과정</h2>
+    <ol class="steps">
+      <li><code>SidebarNavigation</code>이 <code>authStore.roleGroup.entityId</code>를 읽습니다. 권한 그룹이 없으면 메뉴를 요청하지 않습니다.</li>
+      <li><code>permissionApi.getMenusByPermission(permissionId)</code>로 그 그룹에 허용된 메뉴 배열을 받습니다.</li>
+      <li><code>menuNamesStore</code>가 서버 메뉴 <code>code</code>를 아이콘, 색, 경로로 바꿉니다. 표는 스토어 파일 안의 <code>codeToKeyMap</code>, <code>codeToIconMap</code>, <code>codeToRouteMap</code>입니다.</li>
+      <li>화면에 없는 코드는 메뉴로 나오지 않습니다. 서버에 메뉴를 추가해도 이 맵에 코드가 없으면 클릭 경로가 없습니다.</li>
+    </ol>
+    <table>
+      <thead><tr><th>서버 코드</th><th>주소 (테넌트 다음)</th><th>페이지 파일</th></tr></thead>
+      <tbody>
+        <tr><td><code>COUNSEL</code></td><td><code>/</code></td><td><code>MainPage.vue</code> → 상담 레이아웃</td></tr>
+        <tr><td><code>DASHBOARD</code></td><td><code>/dashboard</code></td><td><code>DashboardPage.vue</code></td></tr>
+        <tr><td><code>CUSTOMERS</code></td><td><code>/customers</code></td><td><code>CustomerPage.vue</code></td></tr>
+        <tr><td><code>CONSULTATION-HISTORIES</code></td><td><code>/consultation-histories</code></td><td><code>ConsultationHistoryPage.vue</code></td></tr>
+        <tr><td><code>NOTIFICATIONS</code></td><td><code>/notifications</code></td><td><code>NotificationPage.vue</code></td></tr>
+        <tr><td><code>MESSAGE</code></td><td><code>/messages</code></td><td><code>MessagePage.vue</code></td></tr>
+        <tr><td><code>NOTICES</code></td><td><code>/notices</code></td><td><code>NoticePage.vue</code></td></tr>
+        <tr><td><code>STATISTICS</code></td><td><code>/statistics</code></td><td><code>StatisticsPage.vue</code></td></tr>
+        <tr><td><code>CONSULTATION-TYPES</code></td><td><code>/consultation-types</code></td><td><code>ConsultationTypePage.vue</code></td></tr>
+        <tr><td><code>CALLBACKS</code></td><td><code>/callbacks</code></td><td><code>CallbackPage.vue</code></td></tr>
+        <tr><td><code>AGENTS</code></td><td><code>/agents</code></td><td><code>CounselorPage.vue</code></td></tr>
+        <tr><td><code>ENVIRONMENT-SETTINGS</code></td><td><code>/environment-settings</code></td><td><code>EnvironmentSettingsPage.vue</code></td></tr>
+        <tr><td><code>BILLBOARD</code></td><td>외부 URL</td><td>페이지 없음. 계정 id를 암호화해 전광판 주소를 엽니다.</td></tr>
+      </tbody>
+    </table>
+    <p>알림·쪽지 메뉴에는 <code>notificationStore</code>의 건수가 뱃지로 붙습니다. 활성 메뉴는 현재 주소에서 테넌트 조각을 지운 뒤 <code>pathToKeyMap</code>으로 고릅니다.</p>
+    <p>전광판 클릭은 <code>bridgetecApi</code>로 암호화된 accountId를 받고, <code>systemVariableApi</code>로 URL을 읽어 새 창을 엽니다. 라우트 이동이 아닙니다.</p>
+
+    <h2>페이지는 얇고, 컴포넌트가 화면입니다</h2>
+    <p>상담 메인 <code>ipron/pages/MainPage.vue</code>는 <code>RemoteConsultationLayout</code>만 그립니다. 마운트 시 통화 카드가 없을 때만 <code>consultationStore.resetAll()</code>을 호출합니다. 통화 중 데이터를 라우트 왕복으로 지우지 않으려는 분기입니다.</p>
+    <p>공지 페이지는 검색 폼과 표를 조합합니다.</p>
+    <ul class="clean">
+      <li><code>ipron/components/notice/NoticeSearchForm.vue</code></li>
+      <li><code>ipron/components/notice/NoticeTable.vue</code></li>
+      <li><code>ipron/components/notice/NoticeRegisterDialog.vue</code></li>
+    </ul>
+    <p>콜백, 상담 이력, 통계, 고객, 쪽지도 같은 모양입니다. <code>pages</code>는 라우트가 가리키는 껍데기이고, <code>components/{업무}</code>에 폼·표·팝업이 있습니다. 통계는 탭 컴포넌트(<code>InboundStatisticsTab</code>, <code>CounselorStatisticsTab</code> 등)가 <code>StatisticsPage</code> 안에 나란히 있습니다.</p>
+
+    <h3>components 폴더</h3>
+    <table>
+      <thead><tr><th>폴더</th><th>들어 있는 것</th></tr></thead>
+      <tbody>
+        <tr><td><code>common</code></td><td><code>HeaderBar</code>, <code>SidebarNavigation</code>, 소프트폰(<code>SoftPhone3</code>, <code>SoftPhone4</code>), 로딩 다이얼로그.</td></tr>
+        <tr><td><code>main</code></td><td>상담 본화면. <code>RemoteConsultationLayout</code>, 수신·발신·호전환 팝업, 활성 통화, 티켓 이벤트 핸들러.</td></tr>
+        <tr><td><code>consultation-details</code>, <code>consultation-history</code>, <code>consultation-list</code></td><td>상담 내용, 이력 검색, 미처리·완료·예약·콜백 목록.</td></tr>
+        <tr><td><code>chat</code>, <code>temp-chat</code></td><td>채팅 창, 키워드 알림, 채팅 이관. <code>TempChat.vue</code> 페이지는 채팅 시험 화면입니다.</td></tr>
+        <tr><td><code>ai-assistant</code></td><td>요약 패널. 웹소켓 <code>/topic/assistant/summary</code>와 연결됩니다.</td></tr>
+        <tr><td><code>callback</code>, <code>counselor</code>, <code>customer</code>, <code>notice</code>, <code>message</code>, <code>statistics</code>, <code>dashboard</code>, <code>mypage</code></td><td>각 메뉴 페이지의 폼과 표.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>소프트폰과 채팅은 페이지 밖에서도 살아 있습니다</h2>
+    <p>전화 제어는 Vue 화면과 별도 클라이언트입니다.</p>
+    <ul class="clean">
+      <li><code>ipron/services/ipronClient.ts</code>, <code>ipronClientV2.ts</code> — 교환기(IPRON)와 말하는 서비스.</li>
+      <li><code>ipron/composables/ipron/useIpronClient.ts</code> — 페이지에서 그 서비스를 쓰는 컴포지션 함수.</li>
+      <li><code>ipron/composables/softphone/useSoftPhoneState.ts</code>, <code>useSoftPhoneEvents.ts</code> — 버튼 상태와 이벤트.</li>
+      <li><code>js/ipron/const/IpronCode.js</code> — 상태 코드 상수.</li>
+    </ul>
+    <p>채팅은 <code>composables/iccchat/ICCChatAPI.js</code>, <code>useIccChatHttp.js</code>와 스토어 <code>iccChatStore</code>입니다. HTTP로 방·메시지를 가져오고, 실시간 문장은 웹소켓 토픽을 같이 봅니다.</p>
+    <p>STT 문장 이력은 상담 이력 팝업 <code>STTHistoryPopup.vue</code>가 브리지텍 STT API를 ucid로 호출합니다. 통화 중 따라오는 문장은 <code>/topic/stt/message</code> 구독입니다. “저장된 문장 조회”와 “지금 들어오는 문장”의 경로가 다릅니다.</p>
+
+    <h2>이 화면 전용 스토어</h2>
+    <table>
+      <thead><tr><th>스토어</th><th>보관하는 것</th></tr></thead>
+      <tbody>
+        <tr><td><code>consultationStore</code></td><td>연결 카드, 상담 진행 상태. 메인 페이지가 비어 있을 때만 초기화.</td></tr>
+        <tr><td><code>ticketStore</code></td><td>현재 상담에 묶인 티켓.</td></tr>
+        <tr><td><code>notificationStore</code></td><td>알림 수, 쪽지 수. 사이드바 뱃지.</td></tr>
+        <tr><td><code>menuNamesStore</code></td><td>권한으로 걸러진 왼쪽 메뉴. 한 번 로드하면 <code>initialLoaded</code>.</td></tr>
+        <tr><td><code>assistantStore</code></td><td>어시스턴트 요약·이상 징후.</td></tr>
+        <tr><td><code>iccChatStore</code></td><td>채팅방과 메시지.</td></tr>
+      </tbody>
+    </table>
+    <p>스토어는 “서버 데이터의 복사본”입니다. 새로고침하면 메모리 상태는 사라지므로, 페이지 <code>onMounted</code>에서 API를 다시 호출합니다. 권한 메뉴만 <code>initialLoaded</code>로 중복 호출을 막습니다.</p>
+
+    <h2>페이지를 추가한다면</h2>
+    <ol class="steps">
+      <li><code>ipron/pages/SomethingPage.vue</code>를 만듭니다. 검색·표는 <code>ipron/components/something/</code>으로 나눕니다.</li>
+      <li><code>routes.js</code>의 <code>/{tenantName}</code> children에 path와 name을 넣습니다.</li>
+      <li><code>menuNamesStore</code>의 코드·아이콘·경로 맵에 서버 메뉴 코드와 같은 키를 넣습니다.</li>
+      <li>권한 그룹에 그 메뉴가 있어야 API 응답에 포함되어 왼쪽에 보입니다.</li>
+      <li>데이터는 <code>js/api</code>에 함수를 추가하고 페이지에서 호출합니다. 백엔드 URL은 <code>FlowAppConstants</code>와 같아야 합니다.</li>
+    </ol>
+
+    <p class="footer-note">다음: <a href="08-admin.html">관리 탭 화면</a></p>
+  </main>
+</div>
+</body>
+</html>

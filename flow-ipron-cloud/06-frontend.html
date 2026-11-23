@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>프론트 두 갈래 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav active" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>화면 소스가 두 갈래인 이유</h1>
+    <p class="lead">프론트는 <code>front/</code> 앱 하나입니다. 그 안에 “주소마다 페이지가 바뀌는 상담 화면”과 “한 껍데기 안에서 탭으로 관리 화면을 여는 화면”이 같이 있습니다. Vue 파일, Pinia, axios를 쓰는 방식은 같습니다.</p>
+
+    <div class="cards">
+      <article class="card">
+        <span class="tag">왼쪽 메뉴 + 페이지</span>
+        <h3>상담 화면 ipron</h3>
+        <p>로그인 후 위에는 헤더, 왼쪽에는 아이콘 메뉴, 오른쪽에는 지금 고른 페이지 하나가 있습니다.</p>
+        <p>메뉴를 누르면 주소가 <code>/{테넌트}/notices</code>처럼 바뀌고, 라우터가 페이지 컴포넌트를 갈아 끼웁니다.</p>
+        <p>폴더 <code>front/src/ipron</code></p>
+      </article>
+      <article class="card">
+        <span class="tag">탭으로 겹쳐 여는 관리 화면</span>
+        <h3>pages/tabs</h3>
+        <p>사용자, 권한, 코드, 캠페인, 평가처럼 설정 화면이 많습니다. 각 화면은 검색 폼과 표가 있는 관리 페이지입니다.</p>
+        <p>메뉴를 눌러도 브라우저 주소가 화면마다 바뀌지 않습니다. <code>MainPage.vue</code>가 탭을 추가하고, 탭 이름에 해당하는 Vue를 그립니다.</p>
+        <p>폴더 <code>front/src/pages</code>, <code>front/src/components</code></p>
+      </article>
+    </div>
+
+    <h2>라우터가 껍데기를 고릅니다</h2>
+    <p>파일은 <code>front/src/router/routes.js</code>입니다.</p>
+    <table>
+      <thead><tr><th>주소</th><th>레이아웃</th><th>안에 들어가는 것</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>/{tenantName}/login</code> 등</td>
+          <td><code>ipron/layout/PreAuthLayout.vue</code></td>
+          <td>로그인, 이메일 등록, 비밀번호, 2차 인증. <code>meta.public: true</code>라 토큰 없이 들어옵니다.</td>
+        </tr>
+        <tr>
+          <td><code>/{tenantName}</code>와 그 하위</td>
+          <td><code>ipron/layout/PostAuthLayout.vue</code></td>
+          <td>상담 메인, 대시보드, 이력, 공지, 콜백, 상담사, 고객, 통계, 쪽지, 마이페이지. <code>skipUIMode: true</code>.</td>
+        </tr>
+        <tr>
+          <td><code>/tenant-management</code></td>
+          <td><code>components/layouts/TraditionalLayout.vue</code></td>
+          <td>슈퍼 관리자·테넌트 관리자용 테넌트 관리. <code>pages/TenantManagement.vue</code>.</td>
+        </tr>
+        <tr>
+          <td><code>/traditional/...</code></td>
+          <td>같은 TraditionalLayout</td>
+          <td>헤더·사이드바·본문·푸터 4구역을 시험하는 라우트. 일부 자식은 <code>pages/MainPage.vue</code>를 그대로 가리키는 placeholder입니다.</td>
+        </tr>
+        <tr>
+          <td><code>/single-view/...</code></td>
+          <td><code>SingleViewLayout.vue</code></td>
+          <td>사이드바 없는 탭형. 모바일용으로 주석이 달려 있고, 자식은 대시보드 placeholder 정도입니다.</td>
+        </tr>
+        <tr>
+          <td><code>/popup/...</code></td>
+          <td>팝업 전용 레이아웃</td>
+          <td>티켓 상세, 상담 스크립트, KMS 검색, 설문. 새 창으로 띄우는 화면.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>상담원이 매일 쓰는 주소는 <code>/{테넌트이름}/...</code>입니다. <code>/traditional</code>과 <code>/single-view</code>는 UI 모드 전환용으로 라우트와 미들웨어(<code>router/middleware/uimodeMiddleware.js</code>)가 남아 있습니다. 모드 값은 스토어 <code>uimodeStore</code>와 백엔드 <code>uimode</code> 패키지가 갖고 있습니다. 상담 테넌트 라우트는 <code>skipUIMode</code>라 이 전환을 타지 않습니다.</p>
+
+    <h2>둘 다 같은 방식으로 API를 부릅니다</h2>
+    <div class="flow">
+      <div class="box">페이지 또는 탭</div>
+      <div class="arrow">→</div>
+      <div class="box">Pinia 스토어<br/>또는 페이지 함수</div>
+      <div class="arrow">→</div>
+      <div class="box">js/api/○○Api.js</div>
+      <div class="arrow">→</div>
+      <div class="box">boot/axios.js 의 api</div>
+      <div class="arrow">→</div>
+      <div class="box">/rest/api/v1/...</div>
+    </div>
+    <p><code>getHeaders()</code>가 <code>Authorization: Bearer ${localStorage.accessToken}</code>과 <code>date-format</code> 헤더를 붙입니다. 날짜를 시분초까지 받아야 하면 <code>getHeaders("yyyy-MM-dd HH:mm:ss")</code>처럼 넘깁니다. 백엔드는 이 헤더로 날짜 문자열을 해석합니다.</p>
+    <p>API 파일은 도메인마다 하나입니다. <code>front/src/js/api</code>에 50개 남짓 있고, 상담 화면과 관리 탭이 같은 파일을 import 합니다. 공지 목록은 양쪽 모두 <code>noticeApi.getNotices</code>를 탈 수 있습니다. 화면 마크업만 다릅니다.</p>
+
+    <h2>상태도 반쯤 공유합니다</h2>
+    <table>
+      <thead><tr><th>스토어</th><th>위치</th><th>쓰는 쪽</th></tr></thead>
+      <tbody>
+        <tr><td><code>authStore</code></td><td><code>stores/authStore.js</code></td><td>로그인 사용자, 권한 그룹. 양쪽.</td></tr>
+        <tr><td><code>tenantStore</code></td><td><code>stores/tenantStore.js</code></td><td>현재 테넌트 id, 서브도메인. 웹소켓 헤더에도 사용.</td></tr>
+        <tr><td><code>websocket</code></td><td><code>stores/websocket.js</code></td><td>STOMP 연결. 양쪽이 알림을 받을 수 있음.</td></tr>
+        <tr><td><code>codeStore</code>, <code>menuStore</code></td><td><code>stores/</code></td><td>공통 코드, 메뉴 원본. 관리 화면에서 많이 씀.</td></tr>
+        <tr><td><code>mainTab</code></td><td><code>stores/mainTab.js</code></td><td>관리 탭의 열린 탭 목록, 활성 탭, 닫기.</td></tr>
+        <tr><td><code>menuNamesStore</code></td><td><code>ipron/stores/</code></td><td>상담 화면 왼쪽 메뉴만.</td></tr>
+        <tr><td><code>consultationStore</code>, <code>ticketStore</code>, <code>iccChatStore</code></td><td><code>ipron/stores/</code></td><td>통화 카드, 티켓, 채팅. 상담 메인 전용.</td></tr>
+      </tbody>
+    </table>
+    <p>이름이 겹치는 스토어가 있습니다. <code>stores/consultationStore.js</code>와 <code>ipron/stores/consultationStore.js</code>는 다른 파일입니다. import 경로를 끝까지 봐야 합니다.</p>
+
+    <h2>폴더를 이렇게 읽으면 됩니다</h2>
+    <table>
+      <thead><tr><th>폴더</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td><code>front/src/boot</code></td><td>앱이 뜨자마자 실행. axios, 라우터, 창 닫기 전 처리(<code>beforeunload.js</code>), 상담 허브(<code>counsel-hub.js</code>, <code>counsel-flow-hub.js</code>).</td></tr>
+        <tr><td><code>front/src/router</code></td><td>주소 표와 로그인·UI 모드 가드.</td></tr>
+        <tr><td><code>front/src/js/api</code></td><td>백엔드 URL 함수. 화면은 여기만 호출하고 axios를 직접 쓰지 않는 편이 맞습니다.</td></tr>
+        <tr><td><code>front/src/js/common</code></td><td><code>header.js</code>, <code>menu.js</code>(관리 탭 코드), <code>errorHandler.js</code>, 마스킹.</td></tr>
+        <tr><td><code>front/src/js/ipron</code></td><td>소프트폰 상수 <code>IpronCode.js</code>, 상담 앱 상수.</td></tr>
+        <tr><td><code>front/src/components</code></td><td>관리 탭이 쓰는 조각. <code>campaign</code>, <code>ticket</code>, <code>common</code>(표, 버튼, 입력).</td></tr>
+        <tr><td><code>front/src/layouts</code></td><td><code>MainLayout</code>, 로그인·팝업 레이아웃.</td></tr>
+        <tr><td><code>front/src/ipron</code></td><td>상담 화면 전용 페이지·레이아웃·컴포넌트·스토어·컴포저블.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>화면을 고칠 때 파일을 찾는 순서</strong>
+      주소창을 봅니다. <code>/{테넌트}/callbacks</code>처럼 테넌트 바로 아래면 <code>routes.js</code>에서 그 path를 찾고, import된 <code>ipron/pages</code> 파일을 엽니다. 주소는 그대로인데 탭만 바뀌면 <code>pages/MainPage.vue</code>의 <code>components</code> 맵에서 메뉴 이름을 찾습니다.
+    </div>
+
+    <p class="footer-note">다음: <a href="07-ipron.html">상담 화면 (ipron)</a></p>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>계층 구조 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav active" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>Controller, Service, DAO가 하는 일</h1>
+    <p class="lead">Flow 업무 하나는 거의 항상 같은 7개 파일입니다. 공지사항(<code>counsel/notice</code>)이 가장 짧은 예시라, 그 파일을 기준으로 설명합니다.</p>
+
+    <h2>한 업무의 파일 세트</h2>
+    <table>
+      <thead><tr><th>파일</th><th>역할</th><th>공지 예시</th></tr></thead>
+      <tbody>
+        <tr><td>Entity</td><td>테이블 한 행. 컬럼과 필드.</td><td><code>Notice.java</code> / 테이블 <code>NOTICE</code></td></tr>
+        <tr><td>SearchParameter</td><td>검색 조건 + 저장할 본문.</td><td><code>NoticeSearchParameter</code>에 <code>keyword</code></td></tr>
+        <tr><td>Dao 인터페이스</td><td>저장소가 제공해야 하는 메서드 목록.</td><td><code>NoticeDao</code></td></tr>
+        <tr><td>Dao 구현</td><td>실제 쿼리. 추가 조건은 여기서.</td><td><code>NoticeDaoImpl</code></td></tr>
+        <tr><td>Service 인터페이스</td><td>업무가 밖에 보여주는 기능.</td><td><code>NoticeService</code></td></tr>
+        <tr><td>Service 구현</td><td>검증, 파일 첨부, 알림 같은 업무 규칙.</td><td><code>NoticeServiceImpl</code></td></tr>
+        <tr><td>Controller</td><td>URL만 선언하는 경우가 많습니다.</td><td><code>NoticeController</code>는 본문이 비어 있습니다.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Controller는 URL과 “누구의 요청인지”만 담당</h2>
+    <p><code>NoticeController</code>는 부모만 상속합니다.</p>
+<pre><code>@RestController
+@RequestMapping(FlowAppConstants.REST_API_NOTICE)  // /rest/api/v1/notice/notices
+public class NoticeController extends BaseWebCrudController&lt;
+    User, JwtTokenProvider, Notice, Long,
+    NoticeDao, NoticeSearchParameter, NoticeService&gt; {
+}</code></pre>
+    <p>메서드는 부모 <code>BaseWebCrudController</code>에 있습니다. 제네릭 순서는 “사용자 타입, 토큰 제공자, 엔티티, ID 타입, DAO, 검색조건, 서비스”입니다. 이 순서가 맞아야 스프링이 <code>entityService</code>에 <code>NoticeService</code>를 넣습니다.</p>
+    <p>부모는 <code>SecurityContextHolder</code>에서 로그인 사용자를 꺼냅니다. JWT 필터가 미리 <code>AuthUserDetails</code>를 넣어 두기 때문입니다. 그래서 컨트롤러 메서드에 <code>loginUser</code>를 파라미터로 받지 않아도, 서비스 호출 직전에 <code>getLoginUser()</code>가 붙습니다.</p>
+
+    <h3>부모가 만들어 주는 URL</h3>
+    <p>기준 경로는 <code>FlowAppConstants</code>에 있습니다. 공지는 <code>/rest/api/v1/notice/notices</code>입니다.</p>
+    <table>
+      <thead><tr><th>메서드</th><th>경로</th><th>하는 일</th><th>서비스 메서드</th></tr></thead>
+      <tbody>
+        <tr><td>POST</td><td><code>/</code></td><td>한 건 등록. 본문은 SearchParameter.</td><td><code>regist(user, entity)</code></td></tr>
+        <tr><td>POST</td><td><code>/multiple</code></td><td>여러 건 등록.</td><td><code>regist(user, entities)</code></td></tr>
+        <tr><td>GET</td><td><code>/</code></td><td>조건에 맞는 목록.</td><td><code>find</code></td></tr>
+        <tr><td>GET</td><td><code>/?page&amp;size</code></td><td>다음 페이지 유무만 아는 조각(Slice).</td><td><code>findSlice</code></td></tr>
+        <tr><td>GET</td><td><code>/?page&amp;size&amp;isPaging</code></td><td>총 건수가 있는 페이지(Page).</td><td><code>findPaging</code></td></tr>
+        <tr><td>GET</td><td><code>/totalCount</code></td><td>건수만.</td><td><code>findTotalCount</code></td></tr>
+        <tr><td>GET</td><td><code>/{entityId}</code></td><td>한 건.</td><td><code>findOne</code></td></tr>
+        <tr><td>PUT</td><td><code>/{entityId}</code></td><td>한 건 수정. 경로의 id를 엔티티에 심음.</td><td><code>update</code></td></tr>
+        <tr><td>PUT</td><td><code>/multiple</code></td><td>여러 건 수정.</td><td><code>update</code></td></tr>
+        <tr><td>DELETE</td><td><code>/{entityId}</code></td><td>한 건 삭제.</td><td><code>delete</code></td></tr>
+        <tr><td>DELETE</td><td><code>/</code></td><td><code>entityIds</code>로 여러 건 삭제.</td><td><code>delete</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>본문 모양이 엔티티 그 자체가 아닙니다</strong>
+      등록 JSON은 <code>{ "entity": { "title": "...", "content": "..." } }</code>입니다. 컨트롤러가 <code>searchParam.getEntity()</code>를 서비스에 넘기기 때문입니다. 목록 조회는 쿼리스트링으로 <code>entity.title</code>, <code>keyword</code>, <code>page</code>, <code>size</code>, <code>sort</code>를 보냅니다. 공지 화면은 <code>sort=createdDate,desc</code>를 붙입니다.
+    </div>
+    <p>JSON과 form-urlencoded를 둘 다 받도록 같은 경로가 두 번 선언되어 있습니다. 프론트 axios는 JSON을 씁니다.</p>
+    <p>응답 필드가 용도에 따라 달라지는 것은 <code>@JsonView</code>입니다. 목록용 뷰와 단건용 뷰가 나뉘어, 엔티티 필드에 뷰를 지정하면 그 뷰에서만 나갑니다. 공지의 작성자 이름은 목록·단건 둘 다 나가도록 <code>ListEntityView</code>와 <code>SingleEntityView</code>가 붙어 있습니다.</p>
+
+    <h2>Service는 업무 규칙과 트랜잭션</h2>
+    <p>인터페이스는 부모 인터페이스만 확장하는 경우가 많습니다.</p>
+<pre><code>public interface NoticeService extends BaseUserCrudEntityService&lt;
+    User, Notice, Long, NoticeDao, NoticeSearchParameter&gt; {}</code></pre>
+    <p>구현체는 <code>AbstractBaseUserCrudEntityService</code>를 상속합니다. 이 부모가 하는 일은 단순하고 중요합니다.</p>
+    <ul class="clean">
+      <li>조회·등록·수정·삭제 전에 <code>entity.setTenant(loginUser.getTenant())</code>로 로그인 사용자의 테넌트를 박습니다. 다른 고객사 행을 만들거나 고치지 못하게 하는 지점입니다.</li>
+      <li>등록·수정·삭제는 <code>@Transactional(transactionManager = "flowMainTransactionManager")</code>입니다. 우리 DB 트랜잭션입니다.</li>
+      <li>목록의 <code>page</code>, <code>size</code>, <code>sort</code>를 Spring <code>PageRequest</code>로 바꿉니다. 값이 없으면 0페이지, 20건입니다.</li>
+    </ul>
+    <p>공지 구현체 <code>NoticeServiceImpl</code>은 부모 동작을 유지한 채 두 가지를 더합니다.</p>
+    <ol class="steps">
+      <li>단건 조회 후 <code>FileMetaDataDao</code>로 <code>resourceType = notice</code>, <code>resourceKey = 공지 ID</code>인 첨부파일을 찾아 <code>notice.files</code>에 넣습니다. 첨부 테이블이 엔티티 연관이 아니라 리소스 키로 묶여 있다는 뜻입니다.</li>
+      <li><code>FlowRedisMessageListener</code>를 구현하고, 빈이 준비되면(<code>afterPropertiesSet</code>) Redis 구독자 목록에 자신을 등록합니다. Redis로 온 공지 메시지를 웹소켓으로 다시 보낼 수 있게 하려는 연결점입니다.</li>
+    </ol>
+    <p>업무마다 다른 점은 ServiceImpl과 DaoImpl에만 있으면 됩니다. 공통 등록·수정은 부모를 그대로 호출합니다. 공지 등록은 <code>return super.regist(loginUser, entity);</code>입니다.</p>
+
+    <h2>DAO는 쿼리. Flow는 JPA가 기본</h2>
+    <p>“매퍼”를 찾을 때 <code>src/main/resources/mapper</code>부터 보면 공지·티켓 XML은 없습니다. XML은 두 개입니다.</p>
+    <ul class="clean">
+      <li><code>mapper/bridgetec/BridgetecModelMapper.xml</code> — 브리지텍 DB.</li>
+      <li><code>mapper/billing/BillingAccountMapper.xml</code> — 빌링 계정.</li>
+    </ul>
+    <p>나머지 업무의 DAO는 JPA입니다. 인터페이스는 <code>BaseUserCrudEntityJpaDao</code>를 확장하고, 구현은 <code>AbstractBaseUserCrudEntityJpaDao</code>를 상속합니다.</p>
+<pre><code>@Repository
+@Primary
+public class NoticeDaoImpl
+    extends AbstractBaseUserCrudEntityJpaDao&lt;User, Notice, Long, NoticeSearchParameter&gt;
+    implements NoticeDao {
+
+  public NoticeDaoImpl(@Qualifier("jpaSharedEM_AWC_" + FlowAppConstants.MAIN_DB_ENTITY_MANAGER)
+                       EntityManager entityManager) {
+    super(Notice.class, NoticeSearchParameter.class, entityManager);
+  }
+
+  @Override
+  protected void processAdditionalCriteria(...) {
+    // keyword가 있으면 제목 OR 본문 LIKE
+  }
+}</code></pre>
+    <p>생성자에서 EntityManager 이름을 지정하는 이유는 DataSource가 둘이기 때문입니다. 우리 DB용 엔티티 매니저를 골라야 합니다. <code>@Primary</code>는 같은 타입 빈이 여러 개일 때 이 구현을 기본으로 쓴다는 표시입니다.</p>
+    <p>부모 DAO가 엔티티 필드의 <code>@SearchLike</code> 같은 어노테이션을 보고 기본 WHERE를 만듭니다. 공지 제목에는 <code>@SearchLike</code>가 있어서, 검색 객체의 title이 채워지면 LIKE 조건이 됩니다. 제목과 본문을 한 키워드로 동시에 찾고 싶을 때만 <code>processAdditionalCriteria</code>를 재정의합니다. 공지는 <code>keyword</code>가 있으면 <code>title</code> 또는 <code>rawContent</code>에 LIKE를 겁니다.</p>
+    <p>템플릿에는 MyBatis용 부모 <code>AbstractBaseCrudEntityMybatisDao</code>도 있습니다. <code>SqlSession.selectList(쿼리ID)</code>로 <code>find</code>, <code>findOne</code>, <code>insert</code>를 호출하는 구조입니다. 새 업무를 XML로 만들고 싶을 때 이 부모를 쓸 수 있지만, 현재 도메인 DAO 구현은 JPA 쪽이 본체입니다.</p>
+
+    <h2>Entity가 테이블이 되는 규칙</h2>
+    <p>상속은 아래에서 위로 읽으면 됩니다.</p>
+    <div class="flow">
+      <div class="box">BaseEntity<br/>entityId</div>
+      <div class="arrow">→</div>
+      <div class="box">감사 필드<br/>생성·수정자, 시각</div>
+      <div class="arrow">→</div>
+      <div class="box">TenantAwareBaseEntity<br/>TENANT_EID</div>
+      <div class="arrow">→</div>
+      <div class="box">Notice, Ticket, …</div>
+    </div>
+    <p><code>TenantAwareBaseEntity</code>는 <code>@ManyToOne Tenant tenant</code>를 <code>TENANT_EID</code> 컬럼으로 갖습니다. <code>@TenantIsolation</code>이 붙어 테넌트 필터 대상입니다. 테넌트 자신(<code>Tenant</code>)만 이 클래스를 상속하지 않고, 감사 필드 부모에 바로 붙습니다. 테넌트 행은 “어느 테넌트 소속”이 아니라 테넌트 그 자체이기 때문입니다.</p>
+    <table>
+      <thead><tr><th>필드</th><th>컬럼</th><th>의미</th></tr></thead>
+      <tbody>
+        <tr><td><code>entityId</code></td><td>업무마다 다름. 공지는 <code>NOTICE_EID</code></td><td><code>@AttributeOverride</code>로 컬럼명을 바꿉니다.</td></tr>
+        <tr><td><code>createdBy</code> / <code>createdDate</code></td><td><code>CREATE_BY</code>, <code>CREATE_DATE</code></td><td>JPA Auditing이 채웁니다.</td></tr>
+        <tr><td><code>lastModifiedBy</code> / <code>lastModifiedDate</code></td><td><code>MODIFIED_BY</code>, <code>MODIFIED_DATE</code></td><td>수정 시 갱신.</td></tr>
+        <tr><td><code>entityStatus</code></td><td><code>ENTITY_STATUS</code></td><td>물리 삭제 대신 상태. 검색 기본값은 삭제 상태를 빼는 쪽입니다. <code>containDeleteStatusEntity</code>로 포함 여부를 바꿉니다.</td></tr>
+        <tr><td><code>tenant</code></td><td><code>TENANT_EID</code></td><td>고객사.</td></tr>
+      </tbody>
+    </table>
+    <p>공지에서 눈에 띄는 필드 기술은 세 가지입니다.</p>
+    <ul class="clean">
+      <li><code>@Merge</code> — 수정 시 이 필드를 기존 행에 합칩니다. 병합 유틸이 어노테이션을 보고 복사합니다. 없으면 수정 요청에 값이 있어도 반영되지 않을 수 있습니다.</li>
+      <li><code>@Formula</code> — 조회 시점에 서브쿼리로 채우는 읽기 전용 값. 공지는 첨부 개수, 작성자 아이디·이름을 <code>USER_TM</code>에서 가져옵니다. 저장되는 컬럼이 아닙니다.</li>
+      <li><code>@Transient files</code> — DB 컬럼이 아닙니다. 서비스가 조회 후에 채워서 JSON으로만 나갑니다.</li>
+    </ul>
+    <p>전화번호 컬럼은 <code>@Convert(converter = PhoneNumberConverter.class)</code>로 DB에는 암호문, 애플리케이션에서는 평문입니다. 공지에는 없고 고객·티켓 쪽에 있습니다.</p>
+
+    <h2>SearchParameter</h2>
+<pre><code>public class NoticeSearchParameter extends BaseEntitySearchParameter&lt;Notice, Long&gt; {
+  private String keyword;
+  public NoticeSearchParameter() { super(Notice.class); }
+}</code></pre>
+    <p>부모 생성자가 <code>Notice</code>를 <code>new</code>해서 <code>entity</code>에 넣어 둡니다. 그래서 쿼리스트링 <code>entity.title=안녕</code>이 비어 있는 Notice의 title로 바인딩됩니다. 부모에 이미 있는 조건은 <code>page</code>, <code>size</code>, <code>fromCreatedDate</code>, <code>toCreatedDate</code>, <code>entityIds</code>, <code>entities</code>, <code>sort</code>입니다. <code>sort</code> 문자열은 <code>createdDate,desc</code>처럼 필드와 방향을 콤마로 잇고, 여러 개면 하이픈으로 잇습니다.</p>
+
+    <h2>표준이 아닌 Controller</h2>
+    <p>모든 컨트롤러가 CRUD 부모를 쓰지는 않습니다. 로그인은 토큰을 돌려줘야 해서 <code>AuthController</code>가 <code>BaseWebController</code>만 상속하고 <code>POST /rest/api/v1/auth/login</code>을 직접 선언합니다. 통계, 대시보드, 파일, 소프트폰, 외부 연동(SMS, 녹취, 아이프론 클라우드)도 조회·실행 API를 메서드로 직접 가집니다. “목록 화면이 있는 마스터 데이터”면 CRUD 부모, “동작 한 번”이면 메서드를 직접 쓴다고 보면 됩니다.</p>
+
+    <h2>새 업무를 넣을 때의 순서</h2>
+    <ol class="steps">
+      <li><code>FlowAppConstants</code>에 <code>REST_API_...</code> 상수를 추가합니다.</li>
+      <li>엔티티를 <code>TenantAwareBaseEntity&lt;Long&gt;</code>으로 만들고, PK 컬럼을 <code>@AttributeOverride</code>로 지정합니다. 수정될 필드에 <code>@Merge</code>를 붙입니다.</li>
+      <li>SearchParameter에 화면 검색 필드를 추가합니다.</li>
+      <li>Dao 인터페이스 + DaoImpl. 추가 조건이 있으면 <code>processAdditionalCriteria</code>.</li>
+      <li>Service 인터페이스 + ServiceImpl. 규칙이 없으면 <code>super</code> 호출만으로도 동작합니다.</li>
+      <li>Controller는 경로와 제네릭만 채웁니다.</li>
+      <li>프론트 <code>js/api</code>에 같은 URL을 호출하는 함수를 만들고, 상담 화면이면 <code>ipron/pages</code>와 라우트, 관리 화면이면 <code>pages/tabs</code>와 <code>menu.js</code> 키를 연결합니다.</li>
+    </ol>
+
+    <p class="footer-note">다음: <a href="03-domains.html">Flow 업무 묶음</a></p>
+  </main>
+</div>
+</body>
+</html>

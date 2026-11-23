@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>공지로 한 바퀴 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav active" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>공지사항으로 요청을 끝까지 따라가기</h1>
+    <p class="lead">새 기능을 읽을 때는 화면 파일 하나와 API 함수, 컨트롤러, 서비스, DAO를 한 줄로 이어 보면 됩니다. 공지는 그 줄이 짧습니다. 상담 화면과 관리 탭이 같은 API를 쓴다는 점도 여기서 확인됩니다.</p>
+
+    <h2>1. 상담 화면에서 메뉴를 누른다</h2>
+    <ol class="steps">
+      <li>주소는 <code>/{테넌트}/notices</code>입니다.</li>
+      <li><code>routes.js</code>가 <code>PostAuthLayout</code> 안에 <code>ipron/pages/NoticePage.vue</code>를 넣습니다.</li>
+      <li>왼쪽 메뉴가 이 주소와 맞는 이유는 <code>menuNamesStore</code>의 <code>NOTICES → /notices</code> 맵입니다. 권한 API가 이 코드를 돌려줬을 때만 메뉴가 보입니다.</li>
+      <li>페이지는 <code>NoticeSearchForm</code>, <code>NoticeTable</code>, 등록 다이얼로그를 그립니다.</li>
+    </ol>
+    <p>관리 탭에서 같은 데이터를 보려면 메뉴 코드 <code>NOTICE</code>로 탭이 열리고 <code>pages/tabs/NoticeMain.vue</code>가 그려집니다. 아래 API부터는 같습니다.</p>
+
+    <h2>2. 목록 조회</h2>
+    <p><code>front/src/js/api/noticeApi.js</code></p>
+<pre><code>const getNotices = (params) =&gt; {
+  return api.get("/rest/api/v1/notice/notices", {
+    params: { ...params, sort: "createdDate,desc" },
+    ...getHeaders(),
+  });
+};</code></pre>
+    <p>쿼리스트링 예: <code>keyword=점검&amp;page=0&amp;size=20&amp;sort=createdDate,desc</code>. 헤더에는 Bearer 토큰이 있습니다.</p>
+    <p>서버에서는 이렇게 이어집니다.</p>
+    <div class="flow">
+      <div class="box">JwtTokenFilter<br/>사용자 확정</div>
+      <div class="arrow">→</div>
+      <div class="box">NoticeController<br/>부모의 GET /</div>
+      <div class="arrow">→</div>
+      <div class="box">NoticeServiceImpl.find<br/>테넌트 세팅</div>
+      <div class="arrow">→</div>
+      <div class="box">NoticeDaoImpl<br/>제목·본문 LIKE</div>
+      <div class="arrow">→</div>
+      <div class="box">테이블 NOTICE</div>
+    </div>
+    <ul class="clean">
+      <li>컨트롤러 자신은 메서드가 없습니다. <code>BaseWebCrudController.getAllBySearchParam</code> 또는, <code>page</code>·<code>size</code>·<code>isPaging</code>이 있으면 <code>getByPaging</code>이 선택됩니다. 스프링이 쿼리 파라미터가 있는 매핑을 더 구체적으로 봅니다.</li>
+      <li>서비스 부모는 엔티티에 로그인 사용자의 테넌트를 넣습니다. 다른 고객사 공지는 WHERE에 걸리지 않습니다.</li>
+      <li><code>keyword</code>가 있으면 DAO가 제목 또는 <code>rawContent</code> LIKE를 OR로 추가합니다.</li>
+      <li>작성자 이름·아이디, 첨부 개수는 컬럼이 아니라 <code>@Formula</code> 서브쿼리입니다. <code>USER_TM</code>, <code>FILE_METADATA</code>를 조회 시점에 읽습니다.</li>
+    </ul>
+    <p>응답은 배열이거나 <code>Page</code> JSON입니다. 포장 객체는 없습니다. 화면은 <code>response.data</code> 또는 <code>response.data.content</code>를 표에 넣습니다.</p>
+
+    <h2>3. 한 건 등록</h2>
+<pre><code>api.post("/rest/api/v1/notice/notices", param, getHeaders());</code></pre>
+    <p><code>param</code>은 엔티티 단독이 아니라 검색조건 모양입니다.</p>
+<pre><code>{
+  "entity": {
+    "title": "점검 안내",
+    "content": "&lt;p&gt;본문&lt;/p&gt;",
+    "rawContent": "본문"
+  }
+}</code></pre>
+    <p><code>postByMessage</code>가 <code>entityParam.getEntity()</code>만 서비스에 넘깁니다. 서비스는 테넌트를 채운 뒤 DAO <code>create</code>를 호출하고, 트랜잭션은 <code>flowMainTransactionManager</code>입니다. 생성자·생성시각은 Auditing이 채웁니다. 응답은 저장된 <code>Notice</code> JSON이고, 그 안의 <code>entityId</code>가 <code>NOTICE_EID</code>입니다.</p>
+
+    <h2>4. 상세와 첨부</h2>
+    <p><code>GET /rest/api/v1/notice/notices/{entityId}</code>는 <code>NoticeServiceImpl.findOne</code>이 부모 조회 뒤에 첨부를 붙입니다.</p>
+    <ul class="clean">
+      <li><code>FileMetaDataDao.findAllByResourceTypeAndResourceKey("notice", entityId)</code></li>
+      <li>결과를 <code>notice.files</code>에 넣습니다. 이 필드는 <code>@Transient</code>라 공지 테이블 컬럼이 아닙니다.</li>
+      <li>파일 자체의 업로드 URL은 공지 컨트롤러가 아니라 <code>FileController</code> (<code>/rest/api/v1/file/files</code>) 쪽입니다.</li>
+    </ul>
+
+    <h2>5. 수정과 삭제</h2>
+    <table>
+      <thead><tr><th>화면 함수</th><th>HTTP</th><th>서버</th></tr></thead>
+      <tbody>
+        <tr><td><code>updateNotice(entityId, param)</code></td><td><code>PUT /notice/notices/{entityId}</code></td><td>경로 id를 엔티티에 심고 <code>update</code>. <code>@Merge</code>가 있는 필드만 반영되는 병합입니다.</td></tr>
+        <tr><td><code>deleteNotice(entityId)</code></td><td><code>DELETE /notice/notices/{entityId}</code></td><td>단건 삭제. 서비스가 같은 공지의 첨부 메타를 먼저 지운 뒤 공지 행을 지웁니다.</td></tr>
+        <tr><td><code>deleteNotices(entityIds)</code></td><td><code>DELETE /notice/notices?entityIds=...</code></td><td>여러 id. 부모 <code>deleteAllBySearchParameter</code>.</td></tr>
+      </tbody>
+    </table>
+    <p>삭제 응답 본문은 비어 있습니다. 컨트롤러 반환 타입이 <code>void</code>입니다. 화면은 HTTP 상태만 보고 목록을 다시 조회하면 됩니다.</p>
+
+    <h2>6. 다른 사람에게 알려야 할 때</h2>
+    <p>목록 조회는 요청한 사람만 받습니다. “방금 공지가 등록됐다”를 다른 상담원 화면에 바로 띄우려면 웹소켓 토픽 <code>/topic/regist-notice</code>를 씁니다. 봉투는 <code>FlowWebSocketMessage</code>이고, 서버가 여러 대면 Redis 발행 → 각 인스턴스 구독 → 그 서버에 붙은 브라우저 순입니다. 자세한 연결은 <a href="05-realtime.html">스케줄러와 웹소켓</a>에 있습니다. 공지 서비스는 기동 시 Redis 리스너 목록에 자신을 넣습니다.</p>
+
+    <h2>같은 줄을 다른 업무에 적용하면</h2>
+    <table>
+      <thead><tr><th>알고 싶은 것</th><th>공지에서 연 파일</th><th>티켓이라면</th></tr></thead>
+      <tbody>
+        <tr><td>주소</td><td><code>routes.js</code>의 <code>notices</code></td><td>상담 메인은 <code>/</code>, 관리는 탭 <code>TICKET_MANAGE</code></td></tr>
+        <tr><td>화면</td><td><code>NoticePage.vue</code> 또는 <code>NoticeMain.vue</code></td><td><code>RemoteConsultationLayout</code> 또는 <code>TicketManage.vue</code></td></tr>
+        <tr><td>API 함수</td><td><code>noticeApi.js</code></td><td><code>ticketApi.js</code></td></tr>
+        <tr><td>URL 상수</td><td><code>REST_API_NOTICE</code></td><td><code>REST_API_TICKET</code></td></tr>
+        <tr><td>컨트롤러</td><td><code>NoticeController</code></td><td><code>TicketController</code></td></tr>
+        <tr><td>규칙</td><td><code>NoticeServiceImpl</code></td><td><code>TicketServiceImpl</code>. 상태 변경, 이력 생성이 여기 있습니다.</td></tr>
+        <tr><td>쿼리</td><td><code>NoticeDaoImpl.processAdditionalCriteria</code></td><td><code>TicketDaoImpl</code></td></tr>
+        <tr><td>테이블</td><td><code>Notice</code>의 <code>@Table</code></td><td>티켓 엔티티의 <code>@Table</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout ok">
+      <strong>막히면 이 순서로 로그를 봅니다</strong>
+      브라우저 Network에서 URL과 상태 코드, 요청 JSON에 <code>entity</code>가 있는지. 401이면 토큰. 200인데 목록이 비면 테넌트와 검색 조건. 500이면 서버 로그의 <code>FlowException</code> 코드. 쿼리가 의심되면 DAO의 추가 조건과 엔티티 <code>@Formula</code>. 화면만 이상하면 같은 API를 쓰는 다른 쪽 Vue(상담 페이지 vs 관리 탭)를 비교합니다.
+    </div>
+
+    <p class="footer-note"><a href="index.html">처음으로</a></p>
+  </main>
+</div>
+</body>
+</html>

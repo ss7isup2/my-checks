@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flow 업무 묶음 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav active" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>com.wecoms24.flow 패키지 지도</h1>
+    <p class="lead">패키지 이름은 업무 이름입니다. 컨트롤러가 있는 곳이면 URL이 있고, <code>scheduler</code>가 있으면 주기 작업이 있습니다. 경로 상수는 모두 <code>FlowAppConstants</code>에 모여 있습니다.</p>
+
+    <h2>기반</h2>
+    <table>
+      <thead><tr><th>패키지</th><th>하는 일</th><th>먼저 볼 파일</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>core/template</code></td>
+          <td>CRUD 부모. controller, service, dao(jpa·mybatis), entity, 검색조건, <code>@Merge</code>.</td>
+          <td><code>BaseWebCrudController</code>, <code>AbstractBaseUserCrudEntityService</code></td>
+        </tr>
+        <tr>
+          <td><code>core/exception</code></td>
+          <td><code>FlowException</code>과 <code>FlowErrorCode</code>. 없는 데이터는 여기서 던집니다.</td>
+          <td>브리지텍 상담사 조회가 <code>NOT_FOUND_ENTITY</code>를 던지는 곳이 예시.</td>
+        </tr>
+        <tr>
+          <td><code>core/file</code></td>
+          <td>첨부파일 메타. 리소스 타입 + 리소스 키로 공지·게시글에 연결.</td>
+          <td><code>FileController</code>, <code>FileMetaData</code></td>
+        </tr>
+        <tr>
+          <td><code>core/redis</code></td>
+          <td>Redis 연결, 테넌트별 키 접두사, 키 만료 리스너.</td>
+          <td><code>RedisConfig</code>, <code>TenantRedisKeyStrategy</code></td>
+        </tr>
+        <tr>
+          <td><code>core/websocket</code></td>
+          <td>STOMP 엔드포인트 <code>/ws</code>, 메시지 DTO, Redis 발행·구독.</td>
+          <td><a href="05-realtime.html">스케줄러와 웹소켓</a></td>
+        </tr>
+        <tr>
+          <td><code>core/notification</code></td>
+          <td>알림과 쪽지. 상담 화면의 알림 뱃지, 관리 화면의 알림 관리가 여기를 봅니다.</td>
+          <td><code>NotificationController</code>, <code>message/MessageController</code></td>
+        </tr>
+        <tr>
+          <td><code>core/security</code></td>
+          <td>전화번호를 DB에 넣을 때 암호화하는 JPA 변환기.</td>
+          <td><code>PhoneNumberConverter</code>. 비밀번호 정책·차단 번호 같은 계정 보안 엔티티는 패키지 <code>flow.security</code>에 따로 있습니다.</td>
+        </tr>
+        <tr>
+          <td><code>auth</code></td>
+          <td>로그인, 2차 인증, 이메일 등록, 비밀번호, 접속 로그.</td>
+          <td><code>AuthController</code> <code>/rest/api/v1/auth</code></td>
+        </tr>
+        <tr>
+          <td><code>tenant</code></td>
+          <td>고객사, 요청에서 테넌트 결정, 웹소켓 테넌트 채널, 해지 스케줄러.</td>
+          <td><code>TenantContext</code>, <code>TenantRequestInterceptor</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>로그인과 테넌트가 요청에 붙는 순서</h2>
+    <ol class="steps">
+      <li>브라우저는 <code>POST /rest/api/v1/auth/login</code>에 아이디, 비밀번호, <code>tenant.subdomain</code>을 보냅니다. <code>AuthService.loginProcess</code>가 사용자를 확인하고 <code>TenantAwareJwtToken</code>을 돌려줍니다.</li>
+      <li>이후 요청은 <code>Authorization: Bearer</code>를 답니다. <code>JwtTokenFilter</code>가 토큰을 검증하고 SecurityContext에 사용자를 넣습니다.</li>
+      <li>테넌트는 헤더 <code>X-Tenant-Id</code>, 서브도메인, 토큰 안의 테넌트 정보로 해석되어 <code>TenantContext</code>(스레드 로컬)에 남습니다. 관련 클래스는 <code>tenant/context</code>, <code>tenant/interceptor</code>, <code>tenant/filter</code>입니다.</li>
+      <li>서비스는 그 사용자의 <code>getTenant()</code>를 엔티티에 넣습니다. JPA 저장 시 <code>TENANT_EID</code>가 채워집니다.</li>
+    </ol>
+    <p>로그인 직후 흐름에는 활성 세션 확인(<code>/login/check</code>), 이메일 2차 인증(<code>/2factors</code>), 이메일 등록, 비밀번호 변경·재설정이 <code>AuthController</code>에 같이 있습니다. 상담 화면의 로그인·이메일·2차 인증 페이지가 이 API를 호출합니다.</p>
+
+    <h2>상담 운영 counsel</h2>
+    <table>
+      <thead><tr><th>패키지</th><th>화면에서 보이는 이름</th><th>API 접두</th></tr></thead>
+      <tbody>
+        <tr><td><code>counsel/ticket</code></td><td>상담 티켓. 상태, 채널, 이력.</td><td><code>/rest/api/v1/ticket/tickets</code></td></tr>
+        <tr><td><code>ticket/history</code></td><td>티켓이 바뀔 때마다 남는 이력.</td><td><code>/ticket/histories</code></td></tr>
+        <tr><td><code>ticket/channel</code></td><td>전화·채팅 등 인입 채널.</td><td><code>/ticket/channels</code></td></tr>
+        <tr><td><code>ticket/callback</code></td><td>콜백. 분배 스케줄러가 이 서비스를 호출.</td><td><code>/callback/ticket/tickets</code></td></tr>
+        <tr><td><code>ticket/callback/target</code></td><td>콜백을 받을 대상 그룹.</td><td><code>/callback/target-group/target-groups</code></td></tr>
+        <tr><td><code>ticket/reservation</code></td><td>재통화 예약. 5분 전 알림의 원본.</td><td><code>/reservation/ticket/tickets</code></td></tr>
+        <tr><td><code>ticket/statistics</code></td><td>상담유형별·상담사별 통계 저장 테이블.</td><td>통계 컨트롤러와 일일 스케줄러가 채움</td></tr>
+        <tr><td><code>counsel/customer</code></td><td>고객. <code>customerinfo</code>가 고객 정보, <code>attention</code>이 주의 고객.</td><td><code>/customer-info/customer-infos</code>, <code>/attention-customer/...</code></td></tr>
+        <tr><td><code>counsel/type</code></td><td>상담 유형 트리.</td><td><code>/counsel/type/types</code></td></tr>
+        <tr><td><code>counsel/organization</code></td><td>우리 쪽 조직.</td><td><code>/organization/organizations</code></td></tr>
+        <tr><td><code>counsel/notice</code></td><td>공지.</td><td><code>/notice/notices</code></td></tr>
+        <tr><td><code>counsel/script</code></td><td>상담 스크립트. 팝업으로도 열림.</td><td><code>/script/scripts</code></td></tr>
+        <tr><td><code>counsel/task</code></td><td>업무 요청.</td><td><code>/task/request/requests</code></td></tr>
+        <tr><td><code>counsel/link</code></td><td>사이트 링크.</td><td><code>/site-link/site-links</code></td></tr>
+        <tr><td><code>counsel/stt</code></td><td>우리 쪽에 두는 STT 관련 모델. 문장 원문은 브리지텍 뷰를 봅니다.</td><td>브리지텍 STT API와 역할이 다름</td></tr>
+      </tbody>
+    </table>
+    <p>티켓이 이 시스템의 중심 행입니다. 콜백과 예약은 티켓 패키지 아래에 있고, 스케줄러도 <code>counsel/ticket/scheduler</code>에 있습니다. 통계 숫자는 티켓을 매일 집계해 <code>statistics/bytype</code>, <code>statistics/byuser</code> 저장 엔티티에 넣습니다.</p>
+
+    <h2>사람, 메뉴, 권한</h2>
+    <table>
+      <thead><tr><th>패키지</th><th>하는 일</th><th>API</th></tr></thead>
+      <tbody>
+        <tr><td><code>user</code></td><td>사용자. 상담사 계정.</td><td><code>/user/users</code></td></tr>
+        <tr><td><code>user/agreement</code></td><td>약관 동의.</td><td><code>/user/agreements</code></td></tr>
+        <tr><td><code>user/command</code>, <code>command/key</code></td><td>개인 단축 명령, 단축키. 상담 화면 마이페이지와 연결.</td><td><code>/users/{id}/command/commands</code></td></tr>
+        <tr><td><code>settings/menu</code></td><td>메뉴 마스터. 화면 코드(<code>NOTICE</code> 등)가 여기 데이터와 맞아야 탭이 열립니다.</td><td><code>/settings/menu/menus</code></td></tr>
+        <tr><td><code>settings/role</code>, <code>role/group</code></td><td>권한, 권한 그룹. 그룹에 메뉴가 붙습니다.</td><td><code>/settings/role/roles</code>, <code>/settings/role-group/role-groups</code></td></tr>
+        <tr><td><code>settings/code</code></td><td>공통 코드.</td><td><code>/settings/code/codes</code></td></tr>
+        <tr><td><code>settings/valiable</code></td><td>시스템 변수. 폴더 철자가 variable이 아니라 valiable입니다. 전광판 URL 등.</td><td><code>/settings/system/variable/variables</code></td></tr>
+        <tr><td><code>uimode</code></td><td>테넌트의 UI 모드 값. 프론트 미들웨어가 TRADITIONAL / SINGLE_VIEW를 나눌 때 참고합니다.</td><td><code>UIModeController</code></td></tr>
+      </tbody>
+    </table>
+    <p>상담 화면 왼쪽 메뉴는 권한 그룹 id로 <code>permissionApi.getMenusByPermission</code>을 호출해 가져옵니다. 관리 탭은 <code>front/src/js/common/menu.js</code>의 <code>name</code>이 서버 메뉴 코드와 같아야 <code>MainPage.vue</code>의 컴포넌트 맵에 걸립니다. 메뉴를 추가하면 DB 메뉴, <code>menu.js</code>, <code>MainPage.vue</code>의 import를 같이 맞춰야 합니다.</p>
+
+    <h2>캠페인, 평가, 지식, 그 외</h2>
+    <table>
+      <thead><tr><th>패키지</th><th>하는 일</th></tr></thead>
+      <tbody>
+        <tr><td><code>campaign</code></td><td>캠페인 정의.</td></tr>
+        <tr><td><code>campaign/target</code>, <code>target/list</code>, <code>target/custom</code>, <code>target/activity</code></td><td>대상자, 목록, 커스텀 필드, 접촉 이력.</td></tr>
+        <tr><td><code>campaign/assignment</code></td><td>상담원에게 대상 배분. Redis 토픽 <code>/topic/campaign/assignments</code>.</td></tr>
+        <tr><td><code>campaign/execution</code>, <code>monitoring</code></td><td>실행, 진행 현황.</td></tr>
+        <tr><td><code>campaign/survey</code></td><td>설문, 문항, 템플릿, 응답. 팝업 라우트 <code>/popup/survey</code>.</td></tr>
+        <tr><td><code>evaluation</code></td><td>평가 기준, 문항, 커스텀 기준, 평가표, 결과, 선택 문항.</td></tr>
+        <tr><td><code>kms/content</code></td><td>지식 문서, 버전, 카테고리, 권한, 댓글, 오류 신고, 게시.</td></tr>
+        <tr><td><code>board</code>, <code>board/category</code>, <code>board/reply</code></td><td>게시판.</td></tr>
+        <tr><td><code>chat/room</code>, <code>chat/message</code></td><td>내부 채팅방·메시지. <code>ChatMessageWebSocketSender</code>가 푸시.</td></tr>
+        <tr><td><code>ums/template</code></td><td>문자 템플릿.</td></tr>
+        <tr><td><code>dashboard</code></td><td>대시보드 집계 API. 서비스 구현이 <code>service/impl</code>로 한 단계 더 들어가 있습니다.</td></tr>
+        <tr><td><code>statistics</code></td><td>통계 조회 API와 스케줄 요청 객체.</td></tr>
+        <tr><td><code>assistant</code></td><td>AI 어시스턴트 요약·질의·이상 징후. 웹소켓 토픽 세 개.</td></tr>
+        <tr><td><code>stt</code></td><td>대화 요약 DAO 등 우리 DB에 남는 STT 부가 데이터.</td></tr>
+        <tr><td><code>softphone</code></td><td>소프트폰 설정 조회.</td></tr>
+        <tr><td><code>webrtc</code></td><td>WebRTC 관련 서버 코드.</td></tr>
+        <tr><td><code>division/region</code>, <code>division/branch</code></td><td>지역, 지역사무소.</td></tr>
+        <tr><td><code>billing</code></td><td>빌링. MyBatis <code>BillingAccountMapper.xml</code>을 쓰는 예외적인 flow 패키지.</td></tr>
+        <tr><td><code>external/*</code></td><td>바깥 시스템 호출. 채팅, 챗봇, SMS, 녹취, 검색, 결제(directPay), agrix, 공공, swat, iproncloud. 우리 테이블 CRUD와 모양이 다릅니다.</td></tr>
+        <tr><td><code>security</code> (flow 직속)</td><td>비밀번호 정책·이력, 로그인 시도, 계정 잠금, 통화 정책, 화이트리스트·차단 번호, 감사. 화면보다 보안 규칙에 가깝습니다.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>코드를 찾을 때</strong>
+      URL을 알면 <code>FlowAppConstants</code>에서 상수 이름으로 검색하고, 그 상수를 <code>@RequestMapping</code>에 쓴 컨트롤러로 갑니다. 컨트롤러 제네릭의 마지막 타입이 Service, 그 앞이 DAO입니다. 구현체는 같은 패키지의 <code>*ServiceImpl</code>, <code>*DaoImpl</code>입니다.
+    </div>
+
+    <p class="footer-note">다음: <a href="04-bridgetec.html">Bridgetec 연동</a></p>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bridgetec 연동 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav active" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>스케줄러와 웹소켓</h1>
+    <p class="lead">목록 새로고침으로 알 수 없는 일 — “지금 콜백이 배정됐다”, “예약 통화 5분 전이다”, “오늘 티켓이 몇 건이다” — 은 서버가 시간을 재서 계산하고, 붙어 있는 브라우저로 밀어 줍니다.</p>
+
+    <h2>스케줄러는 그냥 스프링 빈입니다</h2>
+    <p><code>FlowApplication</code>의 <code>@EnableScheduling</code>이 켜져 있으면, <code>@Component</code> 안의 <code>@Scheduled</code> 메서드가 cron에 맞춰 호출됩니다. 별도의 스케줄러 서버 프로세스는 없습니다.</p>
+    <p>cron 여섯 칸은 <strong>초 분 시 일 월 요일</strong>입니다. <code>0 * * * * *</code>는 “매분 0초”입니다.</p>
+
+    <table>
+      <thead>
+        <tr><th>클래스</th><th>주기</th><th>지금 도나</th><th>하는 일</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TicketBoardBroadcastScheduler</code><br/><code>counsel/ticket/scheduler</code></td>
+          <td><code>*/10 * * * * *</code><br/>10초마다</td>
+          <td>예</td>
+          <td>오늘 00시~내일 00시 티켓 건수를 테넌트별로 구해 티켓 보드 토픽으로 보냅니다. 푸터의 티켓 카운트가 이 값을 받습니다.</td>
+        </tr>
+        <tr>
+          <td><code>CallbackDistributionScheduler</code><br/><code>counsel/ticket/callback/scheduler</code></td>
+          <td><code>0 * * * * *</code><br/>매분</td>
+          <td>예. 마스터만</td>
+          <td>활성 테넌트 중 <code>callbackAutoDistribution == true</code>인 곳만 <code>callbackService.autoDistributeCallbacks</code>를 호출하고, 배정 결과를 웹소켓과 알림으로 보냅니다.</td>
+        </tr>
+        <tr>
+          <td><code>TicketReservationBroadcastScheduler</code><br/><code>counsel/ticket/scheduler</code></td>
+          <td><code>0 * * * * *</code><br/>매분</td>
+          <td>웹소켓은 항상, 알림 저장은 마스터만</td>
+          <td>재통화 예약이 약 5분 앞인 티켓을 찾아 담당자 토픽으로 메시지를 보냅니다. <code>Notification</code> 행은 <code>isMasterServer</code>일 때만 남깁니다.</td>
+        </tr>
+        <tr>
+          <td><code>TicketStatisticsScheduler</code><br/><code>counsel/ticket/scheduler</code></td>
+          <td><code>0 15 0 * * *</code><br/>매일 00:15</td>
+          <td>예</td>
+          <td>어제 하루 티켓을 상담 유형별·사용자별로 집계해 통계 저장 테이블에 넣습니다. 통계 화면은 이 저장된 숫자를 읽습니다.</td>
+        </tr>
+        <tr>
+          <td><code>NotificationReservationBroadcastScheduler</code><br/><code>core/notification/scheduler</code></td>
+          <td>매분으로 적혀 있었음</td>
+          <td>아니오</td>
+          <td><code>@Scheduled</code>가 주석입니다. 메서드 이름은 예약 쪽지 발송이고, 소스 주석에 “안 쓰는 듯”이라고 적혀 있습니다.</td>
+        </tr>
+        <tr>
+          <td><code>TenantUnsubscriptionScheduler</code><br/><code>tenant/scheduler</code></td>
+          <td>매분으로 적혀 있었음</td>
+          <td>아니오</td>
+          <td><code>@Scheduled</code>가 주석입니다. 만료일이 지난 테넌트를 정지하는 로직은 메서드 안에 남아 있습니다.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>서버가 여러 대일 때</strong>
+      콜백 분배와 테넌트 해지는 <code>com.wecoms24.flow.isMasterServer</code>가 false이면 바로 return 합니다. 같은 작업을 인스턴스마다 돌리면 콜백이 두 번 배정되기 때문입니다. 통계·티켓 보드 스케줄러는 이 플래그를 보지 않습니다. 티켓 보드는 10초마다 “현재 건수”를 다시 보내는 성격이라, 중복 푸시가 데이터 변경은 아닙니다.
+    </div>
+
+    <h3>콜백 자동 분배가 하는 일, 순서대로</h3>
+    <ol class="steps">
+      <li>마스터 서버인지 확인합니다.</li>
+      <li><code>tenantService.findAllActiveTenants()</code>로 테넌트를 돌립니다.</li>
+      <li>테넌트의 자동 분배 설정이 켜져 있을 때만 <code>autoDistributeCallbacks(tenantId)</code>를 호출합니다.</li>
+      <li>배정된 콜백이 있으면 <code>FlowWebSocketMessage</code>로 감싸 Redis 발행 또는 <code>SimpMessagingTemplate.convertAndSend</code>를 합니다. 수신 타입은 <code>USERS</code>입니다. 배정 결과가 빈 목록이면 <code>return</code>이라, 뒤 테넌트는 이번 주기에 보지 않습니다.</li>
+      <li>같은 내용으로 <code>Notification</code> 행을 남겨, 사용자가 알림 목록에서도 보게 합니다.</li>
+    </ol>
+
+    <h3>예약 알림이 찾는 범위</h3>
+    <p><code>TicketReservationBroadcastScheduler</code>는 지금 시각부터 5분 뒤를 구간으로 잡고 예약 티켓을 조회합니다. 담당자 <code>managerEntityId</code>가 없으면 건너뜁니다. 메시지의 <code>message</code> 필드는 <code>[재통화예약] 번호 {고객전화} 예약 통화 5분 전입니다.</code> 형태입니다. 토픽은 <code>/topic/ticket-reservation/{사용자아이디}</code>입니다.</p>
+
+    <h2>웹소켓은 STOMP입니다</h2>
+    <p>설정 클래스는 <code>core/websocket/WebSocketConfig</code>입니다.</p>
+    <table>
+      <thead><tr><th>값</th><th>상수</th><th>의미</th></tr></thead>
+      <tbody>
+        <tr><td><code>/ws</code></td><td><code>WEBSOCKET_PATH</code></td><td>브라우저가 여는 끝점. SockJS를 켭니다. 프론트 <code>stores/websocket.js</code>도 <code>/ws</code>로 SockJS를 만듭니다.</td></tr>
+        <tr><td><code>/flow</code></td><td><code>WEBSOCKET_PREFIX_PATH</code></td><td>클라이언트가 서버 메서드를 호출할 때 붙는 접두. <code>@MessageMapping</code>으로 들어옵니다.</td></tr>
+        <tr><td><code>/topic</code>, <code>/queue</code></td><td>브로커 접두</td><td>서버 → 브라우저 구독 주소. topic은 여러 명, queue는 개인 쪽으로 쓰는 관례입니다.</td></tr>
+      </tbody>
+    </table>
+    <p>CONNECT 프레임에 <code>Authorization</code> 헤더가 있어야 합니다. 인터셉터가 <code>Bearer </code> 뒤 7글자를 잘라 <code>JwtTokenProvider.getAuthentication(ACCESS, token)</code>으로 사용자를 만들고, STOMP 세션 사용자로 넣습니다. 토큰이 없으면 연결이 깨집니다. 프론트는 연결 헤더에 <code>X-Tenant-ID</code>, <code>X-Tenant-Subdomain</code>도 같이 넣습니다.</p>
+
+    <h3>메시지의 모양</h3>
+    <p>오가는 JSON은 <code>FlowWebSocketMessage</code> 하나입니다. 업무마다 DTO를 새로 만들기보다, 공통 봉투에 내용을 넣습니다.</p>
+    <ul class="clean">
+      <li><code>receiverType</code> — <code>USER</code>, <code>USERS</code>, <code>ALL_USERS</code>. 한 명인지 여러 명인지.</li>
+      <li><code>receiver</code> / <code>receivers</code> — 사용자 일부 필드(id, name, entityId).</li>
+      <li><code>className</code> — 내용물의 원래 Java 클래스 이름. 프론트가 어떤 알림인지 구분할 때 씁니다.</li>
+      <li><code>jsonStringContent</code> — 실제 데이터 JSON 문자열. 티켓 건수면 숫자 문자열, 예약이면 예약 객체 JSON.</li>
+      <li><code>message</code>, <code>title</code> — 사람 눈에 보일 문장.</li>
+      <li><code>tenantId</code> — Redis 채널 이름에서 구독자가 다시 채웁니다.</li>
+      <li>STT·채팅 전용 필드(<code>sentence</code>, <code>callId</code>, <code>roomId</code> 등)도 이 클래스에 함께 있습니다.</li>
+    </ul>
+
+    <h2>서버가 여러 대면 Redis가 가운데 있습니다</h2>
+    <div class="flow">
+      <div class="box">스케줄러 또는 서비스</div>
+      <div class="arrow">→</div>
+      <div class="box">Redis에 publish<br/>테넌트 접두 + 토픽</div>
+      <div class="arrow">→</div>
+      <div class="box">모든 인스턴스의<br/>FlowRedisMessageSubscriber</div>
+      <div class="arrow">→</div>
+      <div class="box">FlowRedisMessageListener<br/>구현체들</div>
+      <div class="arrow">→</div>
+      <div class="box">그 인스턴스에<br/>붙은 브라우저</div>
+    </div>
+    <p><code>redisProperties.getBroadcaster().isEnable()</code>이 켜져 있고 publisher가 있으면 Redis로 보냅니다. 꺼져 있으면 그 서버의 <code>SimpMessagingTemplate</code>으로만 보냅니다. 로컬 한 대면 후자만으로도 브라우저가 받습니다. 운영에서 인스턴스가 둘 이상이면, A에서 발생한 이벤트를 B에 붙은 사용자에게 전달하려면 Redis가 필요합니다.</p>
+    <p>채널 이름에는 테넌트 접두가 붙습니다. 예: <code>{테넌트접두}{tenantId}:/topic/ticket-board</code>. <code>FlowRedisMessageSubscriber</code>는 채널에서 테넌트 id를 떼어 <code>FlowWebSocketMessage.tenantId</code>에 넣고, 원래 토픽 이름으로 리스너에게 넘깁니다. 리스너 등록은 <code>subscriber.addFlowRedisMessageListeners(this)</code>입니다. 공지 서비스가 이 방식으로 자신을 등록합니다.</p>
+    <p>포털 계정 id로 된 채널이면 <code>tenantService.findByPortalAccountId</code>로 우리 테넌트 id를 다시 찾습니다. 브리지텍 쪽 식별자와 우리 <code>TENANT_EID</code>가 다르기 때문입니다.</p>
+
+    <h2>토픽 목록</h2>
+    <p>상수는 <code>FlowAppConstants</code>의 <code>REDIS_TOPIC_*</code>입니다. 프론트는 연결 성공 후 이 주소들을 subscribe 합니다. 사용자 전용은 뒤에 <code>/{userId}</code>가 붙는 패턴이 있습니다.</p>
+    <table>
+      <thead><tr><th>토픽</th><th>실어 나르는 것</th></tr></thead>
+      <tbody>
+        <tr><td><code>/topic/ticket-board</code></td><td>테넌트별 오늘 티켓 건수. 10초 스케줄러.</td></tr>
+        <tr><td><code>/topic/callback-ticket</code></td><td>콜백 배정.</td></tr>
+        <tr><td><code>/topic/ticket-reservation</code></td><td>재통화 5분 전. 사용자 id가 뒤에 붙음.</td></tr>
+        <tr><td><code>/topic/regist-notice</code></td><td>공지 등록.</td></tr>
+        <tr><td><code>/topic/transmit-ticket</code></td><td>티켓 전달.</td></tr>
+        <tr><td><code>/topic/send-message</code></td><td>쪽지.</td></tr>
+        <tr><td><code>/topic/todo</code></td><td>할 일.</td></tr>
+        <tr><td><code>/topic/campaign/assignments</code></td><td>캠페인 배정.</td></tr>
+        <tr><td><code>/topic/chat</code></td><td>채팅 메시지. <code>ChatMessageWebSocketSender</code>.</td></tr>
+        <tr><td><code>/topic/stt/message</code></td><td>통화 중 문장.</td></tr>
+        <tr><td><code>/topic/stt/event</code></td><td>통화 시작·종료 같은 STT 이벤트.</td></tr>
+        <tr><td><code>/topic/stt/result</code></td><td>STT 결과·키워드.</td></tr>
+        <tr><td><code>/topic/assistant/anomaly</code></td><td>어시스턴트 이상 징후.</td></tr>
+        <tr><td><code>/topic/assistant/query</code></td><td>어시스턴트 질의.</td></tr>
+        <tr><td><code>/topic/assistant/summary</code></td><td>상담 요약.</td></tr>
+        <tr><td><code>/topic/request/init-password</code></td><td>비밀번호 초기화 요청.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>테넌트 전용 메시지 매핑</h2>
+    <p><code>tenant/websocket/TenantWebSocketController</code>는 브라우저가 서버로 보내는 메시지용입니다. <code>@MessageMapping</code> 경로입니다.</p>
+    <ul class="clean">
+      <li><code>/tenant/{tenantId}/message</code></li>
+      <li><code>/tenant/{tenantId}/user/{userId}</code></li>
+      <li><code>/tenant/{tenantId}/notification</code></li>
+      <li><code>/tenant/{tenantId}/status</code></li>
+    </ul>
+    <p>실제 클라이언트 전송 경로는 애플리케이션 접두 때문에 <code>/flow/tenant/{tenantId}/message</code>입니다. 구독해서 받는 경로는 <code>/topic/...</code>입니다. “보내기”와 “받기” 주소가 다르다는 점만 구분하면 됩니다.</p>
+    <p>같은 패키지의 <code>TenantWebSocketConfig</code>와 <code>TenantWebSocketInterceptor</code>는 테넌트 채널에 대한 별도 브로커 설정과 입장 검사입니다. 앱 전체 STOMP 설정은 <code>WebSocketConfig</code>가 맡습니다.</p>
+
+    <h2>프론트에서 연결이 열리는 곳</h2>
+    <p><code>front/src/stores/websocket.js</code>의 <code>connect</code>가 SockJS와 STOMP 클라이언트를 만듭니다. 이미 연결되어 있으면 다시 연결하지 않습니다. 성공 콜백에서 <code>subscribe()</code>로 토픽 목록을 겁니다. 상담 화면은 로그인 이후 이 스토어를 켜고, 알림 스토어·티켓 이벤트·STT 패널이 구독 콜백에서 상태를 바꿉니다.</p>
+    <p>디버그는 브라우저 개발자 도구 Network의 WS 프레임, 또는 서버 로그의 <code>[FlowRedisMessageSubscriber]</code> 한 줄을 보면 됩니다. 메시지가 Redis까지 갔는데 화면이 안 바뀌면 구독 토픽 문자열이 상수와 같은지, 사용자 id가 붙는 토픽인지 확인합니다.</p>
+
+    <p class="footer-note">다음: <a href="06-frontend.html">화면이 두 갈래인 이유</a></p>
+  </main>
+</div>
+</body>
+</html>

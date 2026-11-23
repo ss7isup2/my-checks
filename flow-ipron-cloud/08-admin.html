@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>관리 탭 화면 · Flow Counsel 소스 안내</title>
+  <link rel="stylesheet" href="css/docs.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">Flow Counsel 소스 안내<small>신입 개발자용</small></a>
+    <div class="nav-group">시작</div>
+    <a class="nav" href="index.html">처음 읽기</a>
+    <a class="nav" href="01-map.html">전체 지도</a>
+    <div class="nav-group">백엔드</div>
+    <a class="nav" href="02-layers.html">Controller · Service · DAO</a>
+    <a class="nav" href="03-domains.html">Flow 업무 묶음</a>
+    <a class="nav" href="04-bridgetec.html">Bridgetec 연동</a>
+    <a class="nav" href="05-realtime.html">스케줄러와 웹소켓</a>
+    <div class="nav-group">프론트</div>
+    <a class="nav" href="06-frontend.html">화면이 두 갈래인 이유</a>
+    <a class="nav" href="07-ipron.html">상담 화면 (ipron)</a>
+    <a class="nav active" href="08-admin.html">관리 탭 화면</a>
+    <a class="nav" href="09-walkthrough.html">공지로 한 바퀴</a>
+  
+    <div class="nav-group">API 매핑</div>
+    <a class="nav" href="10-api-counsel.html">상담 화면 API</a>
+    <a class="nav" href="11-api-admin.html">관리 화면 API</a>
+    <a class="nav" href="12-api-catalog.html">API 전체 목록</a>
+  </aside>
+  <main class="content">
+    <h1>관리 화면은 탭이 페이지 역할을 합니다</h1>
+    <p class="lead">사용자 관리, 권한, 공통 코드, 캠페인, 평가, 통계처럼 화면이 많은 쪽은 <code>front/src/pages/tabs</code>에 있습니다. 브라우저 주소를 화면마다 만들지 않고, 한 페이지 안에서 탭으로 겹쳐 엽니다.</p>
+
+    <h2>껍데기</h2>
+    <p><code>layouts/MainLayout.vue</code> 구조는 이렇습니다.</p>
+    <ul class="clean">
+      <li><code>FlowHeader</code> — 위쪽. 티켓 보드 숫자를 받아 아래로 넘깁니다.</li>
+      <li><code>FlowQuickMenu</code> — 메뉴 진입.</li>
+      <li><code>pages/MainPage.vue</code> — 열린 탭과 탭 내용. 높이는 헤더·푸터를 뺀 값으로 맞춥니다.</li>
+      <li><code>FlowFooter</code> — 아래. 티켓 보드 카운트를 표시합니다. 10초 웹소켓과 연결되는 자리입니다.</li>
+    </ul>
+    <p>Quasar 레이아웃 뷰 문자열은 <code>hHh LpR lFf</code>입니다. 헤더 고정, 본문, 푸터 고정이라는 뜻으로 보면 됩니다.</p>
+
+    <h2>탭이 열리는 코드</h2>
+    <p><code>pages/MainPage.vue</code>는 두 조각입니다.</p>
+    <ol class="steps">
+      <li><code>useMainTabStore()</code>의 <code>tabs</code>, <code>activeTab</code>. 사용자가 연 메뉴 목록과 지금 보고 있는 탭 이름.</li>
+      <li><code>components</code> 객체. 키는 <code>Menu.NOTICE.name</code> 같은 문자열, 값은 <code>defineAsyncComponent</code>로 지연 로딩하는 Vue 파일.</li>
+    </ol>
+<pre><code>const components = {
+  [Menu.NOTICE.name]: defineAsyncComponent(() =&gt; import("pages/tabs/NoticeMain.vue")),
+  [Menu.USER_MANAGE.name]: defineAsyncComponent(() =&gt; import("src/pages/tabs/UserManage.vue")),
+  // ...
+}
+
+&lt;FlowDynTabs v-model="mainTabStore.activeTab" :tabs="mainTabStore.tabs" @close="mainTabStore.closeTab" /&gt;
+&lt;q-tab-panels v-model="mainTabStore.activeTab" keep-alive&gt;
+  &lt;q-tab-panel v-for="tab in mainTabStore.tabs" :name="tab.name"&gt;
+    &lt;component :is="components[tab.name]" /&gt;
+  &lt;/q-tab-panel&gt;
+&lt;/q-tab-panels&gt;</code></pre>
+    <p><code>keep-alive</code>라서 다른 탭으로 갔다가 돌아와도 검색 조건과 스크롤이 남습니다. 탭을 닫으면 스토어의 <code>closeTab</code>이 목록에서 빼므로 그때 컴포넌트가 사라집니다.</p>
+    <p>메뉴 이름의 정본은 <code>front/src/js/common/menu.js</code>입니다. 예를 들어 공지는 <code>{ name: "NOTICE", label: "공지사항" }</code>입니다. 이 <code>name</code>이 서버 메뉴 코드, 탭 이름, <code>components</code>의 키, 세 곳과 같아야 화면이 나옵니다. 하나만 다르면 탭은 열리는데 내용이 빈 컴포넌트가 됩니다.</p>
+
+    <h2>tabs 폴더의 화면</h2>
+    <table>
+      <thead><tr><th>파일</th><th>메뉴 이름</th></tr></thead>
+      <tbody>
+        <tr><td><code>UserManage.vue</code></td><td>사용자 관리</td></tr>
+        <tr><td><code>PermissionManage.vue</code></td><td>권한 관리</td></tr>
+        <tr><td><code>MenuManage.vue</code></td><td>메뉴 관리</td></tr>
+        <tr><td><code>CodeManage.vue</code></td><td>코드 관리</td></tr>
+        <tr><td><code>OrgManage.vue</code></td><td>조직 관리</td></tr>
+        <tr><td><code>NoticeMain.vue</code></td><td>공지사항</td></tr>
+        <tr><td><code>BoardMain.vue</code></td><td>게시판</td></tr>
+        <tr><td><code>TicketManage.vue</code></td><td>티켓 관리</td></tr>
+        <tr><td><code>CallConsult.vue</code></td><td>전화 상담</td></tr>
+        <tr><td><code>CallbackManage.vue</code></td><td>콜백 관리</td></tr>
+        <tr><td><code>CustomerInfoManage.vue</code>, <code>AttentionCustomerManage.vue</code></td><td>고객, 주의 고객</td></tr>
+        <tr><td><code>CounselTypeManage.vue</code></td><td>상담 유형</td></tr>
+        <tr><td><code>CampaignManagement.vue</code>와 <code>Campaign*</code></td><td>캠페인, 대상자, 할당, 설문, 진행 현황</td></tr>
+        <tr><td><code>Evaluation*.vue</code></td><td>평가 문항 템플릿, 평가표, 평가 결과</td></tr>
+        <tr><td><code>StatisticsByCounselTypes*.vue</code>, <code>StatisticsByUsers*.vue</code></td><td>일·월·기간 통계</td></tr>
+        <tr><td><code>SystemVariableManage.vue</code></td><td>시스템 변수</td></tr>
+        <tr><td><code>UmsTemplateManage.vue</code></td><td>문자 템플릿</td></tr>
+        <tr><td><code>NotificationManage.vue</code>, <code>MessageManage.vue</code></td><td>알림, 쪽지</td></tr>
+        <tr><td><code>AccessLogManage.vue</code></td><td>접속 로그</td></tr>
+        <tr><td><code>ChattingMain.vue</code></td><td>채팅</td></tr>
+        <tr><td><code>ExternalTransferManage.vue</code>, <code>ExternalRecordingManage.vue</code></td><td>외부 이관, 녹취</td></tr>
+        <tr><td><code>BranchManage.vue</code>, <code>SiteLinkManage.vue</code>, <code>ProfileManage.vue</code></td><td>지역사무소, 사이트 링크, 프로필</td></tr>
+      </tbody>
+    </table>
+    <p>한 탭 파일의 전형적인 구성은 “검색 조건 ref → 조회 버튼에서 api 호출 → 표에 바인딩 → 행 선택 시 상세 → 저장 시 put/post”입니다. 표·입력·버튼은 <code>components/common</code>의 <code>FlowDynTabs</code> 형제들(<code>FlowInput</code>, <code>FlowBtn</code>, 그리드 래퍼)을 재사용합니다. 업무별 다이얼로그는 <code>components/{업무}</code>에 있습니다.</p>
+
+    <h2>components 폴더를 업무로 찾기</h2>
+    <p><code>front/src/components</code>는 탭이 import하는 조각입니다. 폴더 이름이 백엔드 패키지와 거의 같습니다.</p>
+    <ul class="clean">
+      <li><code>campaign</code> — 대상자, 할당, 설문 팝업.</li>
+      <li><code>ticket</code>, <code>callback</code>, <code>call</code> — 티켓 상세 팝업은 <code>/popup/ticket-detail</code> 라우트로도 열립니다.</li>
+      <li><code>users</code>, <code>permissions</code>, <code>menu</code>, <code>codes</code>, <code>organization</code>.</li>
+      <li><code>evaluation</code>, <code>kms</code>, <code>notice</code>, <code>board</code>, <code>ums</code>, <code>statistic</code>.</li>
+      <li><code>common</code> — 업무와 무관한 입력, 표, 탭, 로딩.</li>
+      <li><code>layouts</code> — <code>TraditionalLayout</code>, <code>SingleViewLayout</code>. 라우트의 UI 모드용 껍데기.</li>
+    </ul>
+
+    <h2>스토어가 탭보다 오래 삽니다</h2>
+    <p><code>stores/mainTab.js</code>가 탭 배열을 갖고 있으므로, <code>MainPage</code>가 다시 그려져도 열린 탭을 복원할 수 있습니다. 코드·조직·권한처럼 여러 탭이 같이 보는 데이터는 <code>codeStore</code>, <code>organizationStore</code>, <code>permissionStore</code>에 올려 두고, 첫 로드 이후에는 스토어를 읽습니다. 저장이 성공하면 스토어를 다시 <code>load</code>하거나 목록만 교체합니다. 화면만 고치고 스토어를 안 고치면, 다른 탭에 예전 코드 목록이 남습니다.</p>
+
+    <h2>상담 화면과 같은 업무를 양쪽에서 볼 때</h2>
+    <p>공지, 콜백, 고객, 상담 유형, 통계는 파일이 두 벌입니다.</p>
+    <table>
+      <thead><tr><th>업무</th><th>상담 화면</th><th>관리 탭</th></tr></thead>
+      <tbody>
+        <tr><td>공지</td><td><code>ipron/pages/NoticePage.vue</code></td><td><code>pages/tabs/NoticeMain.vue</code></td></tr>
+        <tr><td>콜백</td><td><code>ipron/pages/CallbackPage.vue</code></td><td><code>pages/tabs/CallbackManage.vue</code></td></tr>
+        <tr><td>고객</td><td><code>ipron/pages/CustomerPage.vue</code></td><td><code>pages/tabs/CustomerInfoManage.vue</code></td></tr>
+        <tr><td>상담 유형</td><td><code>ipron/pages/ConsultationTypePage.vue</code></td><td><code>pages/tabs/CounselTypeManage.vue</code></td></tr>
+        <tr><td>통계</td><td><code>ipron/pages/StatisticsPage.vue</code> 안의 탭들</td><td><code>StatisticsByCounselTypesDaily.vue</code> 등 파일별 분리</td></tr>
+      </tbody>
+    </table>
+    <p>API 함수는 공유합니다. 칼럼 구성, 버튼 권한, 레이아웃은 각 Vue에 있습니다. 목록 쿼리를 바꾸면 <code>js/api</code> 한 곳과, 그 응답 필드를 읽는 두 Vue를 같이 확인합니다.</p>
+
+    <h2>관리 화면에 메뉴를 하나 더 넣는 순서</h2>
+    <ol class="steps">
+      <li>백엔드 CRUD가 이미 있으면 URL을 <code>js/api</code>에 함수로 추가합니다.</li>
+      <li><code>pages/tabs/SomethingManage.vue</code>를 만들고 검색·표·저장을 연결합니다. 재사용할 입력은 <code>components/common</code>을 먼저 봅니다.</li>
+      <li><code>js/common/menu.js</code>에 <code>name</code>과 <code>label</code>을 추가합니다. <code>name</code>은 서버 메뉴 코드와 같게 합니다.</li>
+      <li><code>MainPage.vue</code>의 <code>components</code>에 그 <code>name</code>으로 지연 import를 넣습니다.</li>
+      <li>메뉴 관리 화면(또는 초기 데이터)에서 권한 그룹에 메뉴를 붙입니다. 프론트 맵만 있고 DB 메뉴가 없으면 사용자가 탭을 열 수 없습니다.</li>
+    </ol>
+
+    <div class="callout warn">
+      <strong>TraditionalLayout 자식과 혼동하지 않기</strong>
+      <code>routes.js</code>의 <code>/traditional/campaigns</code> 같은 항목은 <code>pages/MainPage.vue</code>를 placeholder로 가리킵니다. 캠페인 화면의 본체는 그 라우트가 아니라 <code>pages/tabs/CampaignManagement.vue</code>이고, 탭 스토어가 열어야 보입니다.
+    </div>
+
+    <p class="footer-note">다음: <a href="09-walkthrough.html">공지로 한 바퀴</a></p>
+  </main>
+</div>
+</body>
+</html>
